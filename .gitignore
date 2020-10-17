@@ -1,0 +1,9 @@
+.github_token
+.github_orgname
+.tg_token
+.tg_chat
+input/
+tmp/
+out/
+*.pyc
+__pycache__
