@@ -9,7 +9,7 @@ import sys
 import zipfile
 
 # from https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/
-from . import update_metadata_pb2
+import update_metadata_pb2
 
 PROGRAMS = ['bzcat', 'xzcat']
 

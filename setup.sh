@@ -15,9 +15,9 @@ if grep -q ^ID=alpine$ /etc/os-release; then
 	fi
 	apk update -q --progress
 	apk add --progress --no-cache --purge --update-cache \
-		bash bash-completion binutils coreutils scanelf ncurses findutils grep dpkg musl libffi gawk sed sharutils \
-		wget curl aria2 ca-certificates gzip cpio bzip2 libbz2 lz4 xz-dev xz xz-libs zlib lzo lzop brotli tar zstd zstd-dev \
-		libxml2 libfdt dtc-dev python3-dev openssh openssl libcrypto1.1 libssl1.1 gnupg detox xxd libgcc libstdc++
+		bash bash-completion binutils coreutils scanelf ncurses ncurses-dev findutils grep dpkg musl-dev libffi gawk sed file sharutils xterm \
+		wget curl aria2 ca-certificates gzip cpio bzip2 libbz2 lz4 xz-dev xz xz-libs zlib lzo lzop brotli tar zstd zstd-dev p7zip \
+		gcc libgcc libstdc++ linux-headers libc-dev git libxml2 libfdt dtc-dev python3-dev openssh openssl libcrypto1.1 libssl1.1 gnupg detox xxd
 elif grep -q ^ID_LIKE=debian$ /etc/os-release; then
 	sed 's/main$/main universe/' /etc/apt/sources.list 1>/dev/null
 	apt-get update -qy
