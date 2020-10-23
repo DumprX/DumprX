@@ -14,7 +14,7 @@ You might've used firmware extractor via dumpyara from https://github.com/Androi
 ## The improvements over dumpyara
 
 - [x] dumpyara's and firmware_extractor's scripts are merged with handpicked shellcheck-ed and pylint-ed improvements
-- [x] The script can download and dump firmware from different filehosters such as Mega.NZ, Mediafire.com, Zippyshare.com, AndroidFileHost.com and from Google Drive/Docs URLs
+- [x] The script can download and dump firmware from different filehosters such as Mega.NZ, Mediafire.com, AndroidFileHost.com and from Google Drive URLs
 - [x] File as-well-as Folder as an input is processed thoroughly to check all kinds of supported firmware types
 - [x] All the external tools are now inherited into one place and unnesessary files removed
 - [x] Binary tools are updated to latest available source
@@ -25,7 +25,7 @@ You might've used firmware extractor via dumpyara from https://github.com/Androi
 
 This toolkit can run in any Debian/Ubuntu distribution, Ubuntu Bionic and Focal would be best, other versions are not tested.
 
-Support for Alpine Linux is added, but not fully tested. But you can give it a try.
+Support for Alpine Linux is added and tested. You can give it a try.
 
 For any other UNIX Distributions, please refer to internal [Setup File](setup.sh) and install the required programs via their own package manager.
 
@@ -46,8 +46,7 @@ Help Context:
 ```text
   >> Supported Websites:
         1. Directly Accessible Download Link From Any Website
-        2. Filehosters like - mega.nz | mediafire.com | zippyshare.com
-                Google Drive/Docs | androidfilehost.com
+        2. Filehosters like - mega.nz | mediafire | google drive | androidfilehost
          >> Must Wrap Website Link Inside Single-quotes ('')
   >> Supported File Formats For Direct Operation:
          *.zip | *.rar | *.tar | *.7z | *.tar.md5 | *.ozip | *.kdz | ruu_*exe
@@ -71,10 +70,8 @@ Credit for those tools goes to everyone whosoever worked hard to put all those p
 
 ## Download Utilities Credits
 
-- badown.sh (for downloading from mega.nz, mediafire.com and zippyshare.com)
-  - shell script, by @stck-lzm
-- gdrive.sh (for downloading from google docs/drive)
-  - shell script, by @GitHub30
+- mega-media-drive_dl.sh (for downloading from mega.nz, mediafire.com, google drive)
+  - shell script, most of it's part belongs to badown by @stck-lzm
 - afh_dl (for downloading from androidfilehosts.com)
   - python script, by @kade-robertson
 - aria2c

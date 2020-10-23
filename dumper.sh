@@ -31,8 +31,7 @@ function _usage() {
 	sleep .5s
 	printf " \e[1;34m >> Supported Websites: \e[0m\n"
 	printf "\e[36m\t1. Directly Accessible Download Link From Any Website\n"
-	printf "\t2. Filehosters like - mega.nz | mediafire.com | zippyshare.com\n"
-	printf "\t\tGoogle Drive/Docs | androidfilehost.com\e[0m\n"
+	printf "\t2. Filehosters like - mega.nz | mediafire | google drive | androidfilehost\e[0m\n"
 	printf "\t\e[33m >> Must Wrap Website Link Inside Single-quotes ('')\e[0m\n"
 	sleep .2s
 	printf " \e[1;34m >> Supported File Formats For Direct Operation:\e[0m\n"
@@ -97,7 +96,7 @@ RUUDECRYPT="${UTILSDIR}"/RUU_Decrypt_Tool
 EXTRACT_IKCONFIG="${UTILSDIR}"/extract-ikconfig
 UNPACKBOOT="${UTILSDIR}"/unpackboot.sh
 # Set Names of Downloader Utility Programs
-BADOWN="${UTILSDIR}"/downloaders/badown.sh
+MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
 GDRIVE="${UTILSDIR}"/downloaders/gdrive.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
 
@@ -124,14 +123,12 @@ else
 		mkdir -p "${INPUTDIR}" 2>/dev/null
 		cd "${INPUTDIR}"/ || exit
 		rm -rf "${INPUTDIR:?}"/* 2>/dev/null
-		if echo "${URL}" | grep -q "mega.nz\|zippyshare.com\|mediafire.com"; then
-			( "${BADOWN}" "${URL}" ) || exit 1
+		if echo "${URL}" | grep -q "mega.nz\|mediafire.com\|drive.google.com"; then
+			( "${MEGAMEDIADRIVE_DL}" "${URL}" ) || exit 1
 		elif echo "${URL}" | grep -q "androidfilehost.com"; then
 			( python3 "${AFHDL}" -l "${URL}" ) || exit 1
-		elif echo "${URL}" | grep -q "drive.google.com\|docs.google.com"; then
-			( "${GDRIVE}" "${URL}" ) || exit 1
 		else
-			aria2c --log-level=error -l - -x16 -s8 "${URL}" || { wget -q --show-progress --progress=bar:force "${URL}" || exit 1; }
+			aria2c -x16 -s8 --console-log-level=error --summary-interval=0 "${URL}" || { wget -q --show-progress --progress=bar:force "${URL}" || exit 1; }
 		fi
 		unset URL
 		for f in *; do detox -r "${f}" 2>/dev/null; done		# Detox Filename
