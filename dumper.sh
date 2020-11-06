@@ -101,9 +101,9 @@ GDRIVE="${UTILSDIR}"/downloaders/gdrive.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
 
 # Partition List That Are Currently Supported
-PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo boot tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap"
+PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo boot recovery tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap"
 EXT4PARTITIONS="system vendor cust odm oem factory product xrom systemex oppo_product preload_common"
-OTHERPARTITIONS="tz.mbn:tz tz.img:tz modem.img:modem NON-HLOS:modem boot-verified.img:boot dtbo-verified.img:dtbo"
+OTHERPARTITIONS="tz.mbn:tz tz.img:tz modem.img:modem NON-HLOS:modem boot-verified.img:boot recovery-verified.img:recovery dtbo-verified.img:dtbo"
 
 # NOTE: $(pwd) is ${PROJECT_DIR}
 if echo "${1}" | grep -q "${PROJECT_DIR}/input/" && [[ $(find "${INPUTDIR}" -maxdepth 1 -type f -size +300M -print | wc -l) -eq 1 ]]; then
@@ -548,6 +548,12 @@ if [[ -f "${OUTDIR}"/boot.img ]]; then
 	printf "boot.elf generated\n"
 fi
 
+# Extract recovery.img
+if [[ -f "${OUTDIR}"/recovery.img ]]; then
+	bash "${UNPACKBOOT}" "${OUTDIR}"/recovery.img "${OUTDIR}"/recovery >/dev/null
+	printf "Recovery extracted\n"
+fi
+
 # Extract dtbo
 if [[ -f "${OUTDIR}"/dtbo.img ]]; then
 	mkdir -p "${OUTDIR}"/dtbo "${OUTDIR}"/dtbodts 2>/dev/null
@@ -558,7 +564,7 @@ fi
 
 # Extract Files From All Usable PARTITIONS
 for p in ${PARTITIONS}; do
-	if ! echo "${p}" | grep -q "boot\|dtbo\|tz"; then
+	if ! echo "${p}" | grep -q "boot\|recovery\|dtbo\|tz"; then
 		if [[ -e "${p}.img" ]]; then
 			mkdir "${p}" 2>/dev/null || rm -rf "${p:?}"/*
 			printf "Extracting %s partition\n" "${p}"
@@ -569,7 +575,7 @@ for p in ${PARTITIONS}; do
 done
 # Remove Unnecessary Image Leftover From OUTDIR
 for q in *.img; do
-	if ! echo "${q}" | grep -q "boot\|dtbo\|tz"; then
+	if ! echo "${q}" | grep -q "boot\|recovery\|dtbo\|tz"; then
 		rm -f "${q}" 2>/dev/null
 	fi
 done
@@ -653,6 +659,7 @@ codename=$(grep -oP "(?<=^ro.product.device=).*" -hs {system,system/system,vendo
 [[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.vendor.product.device=).*" -hs vendor/build*.prop | head -1)
 [[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.system.device=).*" -hs {system,system/system}/build*.prop | head -1)
 [[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.system.device=).*" -hs vendor/euclid/*/build.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.product.device=).*" -hs vendor/euclid/*/build.prop | head -1)
 [[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.device=).*" -hs oppo_product/build*.prop)
 [[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.device=).*" -hs my_product/build*.prop)
 [[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.system.device=).*" -hs my_product/build*.prop)

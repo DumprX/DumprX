@@ -112,7 +112,7 @@ kernel=kernel
 ramdisk=ramdisk
 [ ! -s $kernel ] && exit
 
-# Print boot.img info
+# Print boot.img/recovery.img info
 [ ! -z "$board" ] && pout "  board          : $board"  
 pout "  kernel         : $kernel"
 pout "  ramdisk        : $ramdisk"
