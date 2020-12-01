@@ -1,6 +1,6 @@
 <div align="center">
 
-  <h1>Phoenix Firmware Dumper v1.1.0</h1>
+  <h1>Phoenix Firmware Dumper v1.1.2</h1>
 
   <h4>Based Upon Dumpyara from AndroidDumps, Infused w/ their Firmware_extractor</h4>
 
@@ -94,6 +94,8 @@ Credit for those tools goes to everyone whosoever worked hard to put all those p
 - vmlinux-to-elf and kallsyms_finder (kernel binary to analyzable ELF converter, python scripts)
   - by @marin-m
 - ozipdecrypt.py (Oppo/Oneplus .ozip Firmware decrypter v1.2, python script)
+  - by @bkerler
+- ofp\_qc\_extract.py and ofp\_mtk\_decrypt.py (Oppo .ofp firmware extractor, python scripts)
   - by @bkerler
 - lpunpack (OnePlus/Other super.img unpacker, binary built from source)
   - by @LonelyFool

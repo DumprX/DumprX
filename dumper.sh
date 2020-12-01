@@ -17,7 +17,7 @@ function __bannerTop() {
     ╔══════════════════════════════════════════════════════════════════════════════╗
     ║    ╔═╗╦ ╦╔═╗╔═╗╔╗╔╦═╗ ╦  ╔═╗┬┬─┐┌┬┐┬ ┬┌─┐┬─┐┌─┐  ╔╦╗┬ ┬┌┬┐┌─┐┌─┐┬─┐          ║
     ║    ╠═╝╠═╣║ ║║╣ ║║║║╔╩╦╝  ╠╣ │├┬┘││││││├─┤├┬┘├┤    ║║│ ││││├─┘├┤ ├┬┘          ║
-    ║    ╩  ╩ ╩╚═╝╚═╝╝╚╝╩╩ ╚═  ╚  ┴┴└─┴ ┴└┴┘┴ ┴┴└─└─┘  ═╩╝└─┘┴ ┴┴  └─┘┴└─  v1.1.0  ║
+    ║    ╩  ╩ ╩╚═╝╚═╝╝╚╝╩╩ ╚═  ╚  ┴┴└─┴ ┴└┴┘┴ ┴┴└─└─┘  ═╩╝└─┘┴ ┴┴  └─┘┴└─  v1.1.2  ║
     ║ ---------------------------------------------------------------------------- ║
     ║  Based Upon Dumpyara from AndroidDumps, Infused w/ their Firmware_extractor  ║
     ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -75,6 +75,24 @@ TMPDIR="${OUTDIR}"/tmp				# Temporary Working Directory
 rm -rf "${TMPDIR}" 2>/dev/null
 mkdir -p "${OUTDIR}" "${TMPDIR}" 2>/dev/null
 
+# Clone Oppo Decryption Tools From Upstream
+if [[ ! -d "${UTILSDIR}"/oppo_ozip_decrypt ]]; then
+	git clone -q https://github.com/bkerler/oppo_ozip_decrypt.git "${UTILSDIR}"/oppo_ozip_decrypt
+else
+	git -C "${UTILSDIR}"/oppo_ozip_decrypt pull -q
+fi
+if [[ ! -d "${UTILSDIR}"/oppo_decrypt ]]; then
+	git clone -q https://github.com/bkerler/oppo_decrypt.git "${UTILSDIR}"/oppo_decrypt
+else
+	git -C "${UTILSDIR}"/oppo_decrypt pull -q
+fi
+# Clone vmlinux-to-elf From Upstream
+if [[ ! -d "${UTILSDIR}"/vmlinux-to-elf ]]; then
+	git clone -q https://github.com/marin-m/vmlinux-to-elf.git "${UTILSDIR}"/vmlinux-to-elf
+else
+	git -C "${UTILSDIR}"/vmlinux-to-elf pull -q
+fi
+
 ## See README.md File For Program Credits
 # Set Utility Program Alias
 SDAT2IMG="${UTILSDIR}"/sdat2img.py
@@ -83,9 +101,11 @@ UNSIN="${UTILSDIR}"/unsin
 PAYLOAD_EXTRACTOR="${UTILSDIR}"/ota_payload_extractor/extract_android_ota_payload.py
 DTB_EXTRACTOR="${UTILSDIR}"/extract-dtb.py
 DTC="${UTILSDIR}"/dtc
-VMLINUX2ELF="${UTILSDIR}"/vmlinux_to_elf/main.py
-KALLSYMS_FINDER="${UTILSDIR}"/vmlinux_to_elf/kallsyms_finder.py
+VMLINUX2ELF="${UTILSDIR}"/vmlinux-to-elf/vmlinux_to_elf/main.py
+KALLSYMS_FINDER="${UTILSDIR}"/vmlinux-to-elf/vmlinux_to_elf/kallsyms_finder.py
 OZIPDECRYPT="${UTILSDIR}"/oppo_ozip_decrypt/ozipdecrypt.py
+OFP_QC_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_qc_extract.py
+OFP_MTK_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_mtk_decrypt.py
 LPUNPACK="${UTILSDIR}"/lpunpack
 SPLITUAPP="${UTILSDIR}"/splituapp.py
 PACEXTRACTOR="${UTILSDIR}"/pacextractor
@@ -106,7 +126,13 @@ EXT4PARTITIONS="system vendor cust odm oem factory product xrom systemex oppo_pr
 OTHERPARTITIONS="tz.mbn:tz tz.img:tz modem.img:modem NON-HLOS:modem boot-verified.img:boot recovery-verified.img:recovery dtbo-verified.img:dtbo"
 
 # NOTE: $(pwd) is ${PROJECT_DIR}
-if echo "${1}" | grep -q "${PROJECT_DIR}/input/" && [[ $(find "${INPUTDIR}" -maxdepth 1 -type f -size +300M -print | wc -l) -eq 1 ]]; then
+if echo "${1}" | grep -q "${PROJECT_DIR}/input" && [[ $(find "${INPUTDIR}" -maxdepth 1 -type f -size +10M -print | wc -l) -gt 1 ]]; then
+	FILEPATH=$(printf "%s\n" "$1")		# Relative Path To Script
+	FILEPATH=$(realpath "${FILEPATH}")	# Absolute Path
+	printf "Copying Everything Into %s For Further Operations." "${TMPDIR}"
+	cp -a "${FILEPATH}"/* "${TMPDIR}"/
+	unset FILEPATH
+elif echo "${1}" | grep -q "${PROJECT_DIR}/input/" && [[ $(find "${INPUTDIR}" -maxdepth 1 -type f -size +300M -print | wc -l) -eq 1 ]]; then
 	printf "Input Directory Exists And Contains File\n"
 	cd "${INPUTDIR}"/ || exit
 	# Input File Variables
@@ -128,12 +154,13 @@ else
 		elif echo "${URL}" | grep -q "androidfilehost.com"; then
 			( python3 "${AFHDL}" -l "${URL}" ) || exit 1
 		else
-			aria2c -x16 -s8 --console-log-level=error --summary-interval=0 "${URL}" || { wget -q --show-progress --progress=bar:force "${URL}" || exit 1; }
+			aria2c -x16 -s8 --console-log-level=warn --summary-interval=0 "${URL}" || { wget -q --show-progress --progress=bar:force "${URL}" || exit 1; }
 		fi
 		unset URL
 		for f in *; do detox -r "${f}" 2>/dev/null; done		# Detox Filename
 		# Input File Variables
 		FILEPATH=$(find "$(pwd)" -maxdepth 1 -type f 2>/dev/null)	# Single File
+		printf "\nWorking with %s\n\n" "${FILEPATH##*/}"
 		[[ $(echo "${FILEPATH}" | tr ' ' '\n' | wc -l) -gt 1 ]] && FILEPATH=$(find "$(pwd)" -maxdepth 2 -type d) 	# Base Folder
 	else
 		# For Local File/Folder, Do Not Use Input Directory
@@ -215,15 +242,37 @@ if [[ $(head -c12 "${FILEPATH}" 2>/dev/null | tr -d '\0') == "OPPOENCRYPT!" ]] |
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
 	printf "Decrypting ozip And Making A Zip...\n"
 	python3 "${OZIPDECRYPT}" "${TMPDIR}"/"${FILE}"
-	[[ -d "${TMPDIR}"/out ]] && 7z a -r "${INPUTDIR}"/"${FILE%.*}".zip "${TMPDIR}"/out/*
-	if [[ -f "${FILE%.*}".zip ]]; then
-		mkdir -p "${INPUTDIR}" 2>/dev/null
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
+	if [[ -d "${TMPDIR}"/out ]]; then
+		mv "${TMPDIR}"/out/* "${INPUTDIR}"/
+	elif [[ -f "${FILE%.*}".zip ]]; then
 		mv "${FILE%.*}".zip "${INPUTDIR}"/
+	fi
+	rm -rf "${TMPDIR:?}"/*
+	printf "Re-Loading The Decrypted Content.\n"
+	cd "${PROJECT_DIR}"/ || exit
+	( bash "${0}" "${PROJECT_DIR}/input/" 2>/dev/null || bash "${0}" "${INPUTDIR}"/"${FILE%.*}".zip ) || exit 1
+	exit
+fi
+# Oppo .ofp Check
+if 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q ".*.ofp"; then
+	printf "Oppo ofp Detected.\n"
+	7z e -y "${FILEPATH}" 2>/dev/null
+	ofpfile=$(ls -l | grep ".*.ofp" | gawk '{print $NF}')
+	printf "Found ofp firmware: %s\n" "$ofpfile"
+	if ! python3 "$OFP_QC_DECRYPT" "$ofpfile" out/; then
+		if ! python3 "$OFP_MTK_DECRYPT" "$ofpfile" out/; then
+			printf "ofp decryption error.\n" && exit 1
+		fi
+	fi
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
+	if [[ -d "${TMPDIR}"/out ]]; then
+		mv "${TMPDIR}"/out/* "${INPUTDIR}"/
 	fi
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Decrypted Zip File.\n"
 	cd "${PROJECT_DIR}"/ || exit
-	( bash "${0}" "${INPUTDIR}"/"${FILE%.*}".zip ) || exit 1
+	( bash "${0}" "${PROJECT_DIR}/input/" ) || exit 1
 	exit
 fi
 # LG KDZ Check
@@ -535,7 +584,7 @@ if [[ -f "${OUTDIR}"/boot.img ]]; then
 	mkdir -p "${OUTDIR}"/bootimg "${OUTDIR}"/bootdts 2>/dev/null
 	python3 "${DTB_EXTRACTOR}" "${OUTDIR}"/boot.img -o "${OUTDIR}"/bootimg >/dev/null
 	find "${OUTDIR}"/bootimg -name '*.dtb' -type f | gawk -F'/' '{print $NF}' | while read -r i; do "${DTC}" -q -s -f -I dtb -O dts -o bootdts/"${i/\.dtb/.dts}" bootimg/"${i}"; done 2>/dev/null
-	bash "${UNPACKBOOT}" "${OUTDIR}"/boot.img "${OUTDIR}"/boot >/dev/null
+	bash "${UNPACKBOOT}" "${OUTDIR}"/boot.img "${OUTDIR}"/boot 2>/dev/null
 	printf "Boot extracted\n"
 	# extract-ikconfig
 	mkdir -p "${OUTDIR}"/bootRE
@@ -550,7 +599,7 @@ fi
 
 # Extract recovery.img
 if [[ -f "${OUTDIR}"/recovery.img ]]; then
-	bash "${UNPACKBOOT}" "${OUTDIR}"/recovery.img "${OUTDIR}"/recovery >/dev/null
+	bash "${UNPACKBOOT}" "${OUTDIR}"/recovery.img "${OUTDIR}"/recovery 2>/dev/null
 	printf "Recovery extracted\n"
 fi
 
@@ -612,66 +661,65 @@ sort -nr < "${TMPDIR}"/sized_files.txt > "${OUTDIR}"/all_files.txt
 # set variables
 [[ $(find "$(pwd)"/system "$(pwd)"/vendor "$(pwd)"/*product -maxdepth 2 -type f -name "build*.prop" 2>/dev/null | sort -u | gawk '{print $NF}') ]] || { printf "No system/vendor/product build*.prop found, pushing cancelled.\n" && exit 1; }
 
-flavor=$(grep -oP "(?<=^ro.build.flavor=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${flavor}" ]] && flavor=$(grep -oP "(?<=^ro.vendor.build.flavor=).*" -hs vendor/build*.prop)
-[[ -z "${flavor}" ]] && flavor=$(grep -oP "(?<=^ro.system.build.flavor=).*" -hs {system,system/system}/build*.prop)
-[[ -z "${flavor}" ]] && flavor=$(grep -oP "(?<=^ro.build.type=).*" -hs {system,system/system}/build*.prop)
-release=$(grep -oP "(?<=^ro.build.version.release=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${release}" ]] && release=$(grep -oP "(?<=^ro.vendor.build.version.release=).*" -hs vendor/build*.prop)
-[[ -z "${release}" ]] && release=$(grep -oP "(?<=^ro.system.build.version.release=).*" -hs {system,system/system}/build*.prop)
-id=$(grep -oP "(?<=^ro.build.id=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${id}" ]] && id=$(grep -oP "(?<=^ro.vendor.build.id=).*" -hs vendor/build*.prop)
-[[ -z "${id}" ]] && id=$(grep -oP "(?<=^ro.system.build.id=).*" -hs {system,system/system}/build*.prop)
-incremental=$(grep -oP "(?<=^ro.build.version.incremental=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${incremental}" ]] && incremental=$(grep -oP "(?<=^ro.vendor.build.version.incremental=).*" -hs vendor/build*.prop)
-[[ -z "${incremental}" ]] && incremental=$(grep -oP "(?<=^ro.system.build.version.incremental=).*" -hs {system,system/system}/build*.prop)
-tags=$(grep -oP "(?<=^ro.build.tags=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${tags}" ]] && tags=$(grep -oP "(?<=^ro.vendor.build.tags=).*" -hs vendor/build*.prop)
-[[ -z "${tags}" ]] && tags=$(grep -oP "(?<=^ro.system.build.tags=).*" -hs {system,system/system}/build*.prop)
-platform=$(grep -oP "(?<=^ro.board.platform=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${platform}" ]] && platform=$(grep -oP "(?<=^ro.vendor.board.platform=).*" -hs vendor/build*.prop)
-[[ -z "${platform}" ]] && platform=$(grep -oP "(?<=^ro.system.board.platform=).*" -hs {system,system/system}/build*.prop)
-manufacturer=$(grep -oP "(?<=^ro.product.manufacturer=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${manufacturer}" ]] && manufacturer=$(grep -oP "(?<=^ro.vendor.product.manufacturer=).*" -hs vendor/build*.prop)
-[[ -z "${manufacturer}" ]] && manufacturer=$(grep -oP "(?<=^ro.system.product.manufacturer=).*" -hs {system,system/system}/build*.prop)
-[[ -z "${manufacturer}" ]] && manufacturer=$(grep -oP "(?<=^ro.system.product.manufacturer=).*" -hs vendor/euclid/*/build.prop)
-[[ -z "${manufacturer}" ]] && manufacturer=$(grep -oP "(?<=^ro.product.manufacturer=).*" -hs oppo_product/build*.prop)
-[[ -z "${manufacturer}" ]] && manufacturer=$(grep -oP "(?<=^ro.product.manufacturer=).*" -hs my_product/build*.prop)
-fingerprint=$(grep -oP "(?<=^ro.build.fingerprint=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${fingerprint}" ]] && fingerprint=$(grep -oP "(?<=^ro.vendor.build.fingerprint=).*" -hs vendor/build*.prop)
-[[ -z "${fingerprint}" ]] && fingerprint=$(grep -oP "(?<=^ro.system.build.fingerprint=).*" -hs {system,system/system}/build*.prop)
-[[ -z "${fingerprint}" ]] && fingerprint=$(grep -oP "(?<=^ro.product.build.fingerprint=).*" -hs product/build.prop)
-[[ -z "${fingerprint}" ]] && fingerprint=$(grep -oP "(?<=^ro.product.build.fingerprint=).*" -hs product/build*.prop)
-[[ -z "${fingerprint}" ]] && fingerprint=$(grep -oP "(?<=^ro.build.fingerprint=).*" -hs my_product/build.prop)
-[[ -z "${fingerprint}" ]] && fingerprint=$(grep -oP "(?<=^ro.system.build.fingerprint=).*" -hs my_product/build.prop)
-[[ -z "${fingerprint}" ]] && fingerprint=$(grep -oP "(?<=^ro.vendor.build.fingerprint=).*" -hs my_product/build.prop)
-brand=$(grep -oP "(?<=^ro.product.brand=).*" -hs {system,system/system,vendor}/build*.prop | head -1)
-[[ -z "${brand}" ]] && brand=$(grep -oP "(?<=^ro.product.vendor.brand=).*" -hs vendor/build*.prop | head -1)
-[[ -z "${brand}" ]] && brand=$(grep -oP "(?<=^ro.vendor.product.brand=).*" -hs vendor/build*.prop | head -1)
-[[ -z "${brand}" ]] && brand=$(grep -oP "(?<=^ro.product.system.brand=).*" -hs {system,system/system}/build*.prop | head -1)
-[[ -z "${brand}" ]] && brand=$(grep -oP "(?<=^ro.product.system.brand=).*" -hs vendor/euclid/*/build.prop | head -1)
-[[ -z "${brand}" ]] && brand=$(grep -oP "(?<=^ro.product.odm.brand=).*" -hs vendor/odm/etc/build*.prop)
-[[ -z "${brand}" ]] && brand=$(grep -oP "(?<=^ro.product.brand=).*" -hs oppo_product/build*.prop)
-[[ -z "${brand}" ]] && brand=$(grep -oP "(?<=^ro.product.brand=).*" -hs my_product/build*.prop)
+flavor=$(grep -m1 -oP "(?<=^ro.build.flavor=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${flavor}" ]] && flavor=$(grep -m1 -oP "(?<=^ro.vendor.build.flavor=).*" -hs vendor/build*.prop)
+[[ -z "${flavor}" ]] && flavor=$(grep -m1 -oP "(?<=^ro.system.build.flavor=).*" -hs {system,system/system}/build*.prop)
+[[ -z "${flavor}" ]] && flavor=$(grep -m1 -oP "(?<=^ro.build.type=).*" -hs {system,system/system}/build*.prop)
+release=$(grep -m1 -oP "(?<=^ro.build.version.release=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${release}" ]] && release=$(grep -m1 -oP "(?<=^ro.vendor.build.version.release=).*" -hs vendor/build*.prop)
+[[ -z "${release}" ]] && release=$(grep -m1 -oP "(?<=^ro.system.build.version.release=).*" -hs {system,system/system}/build*.prop)
+id=$(grep -m1 -oP "(?<=^ro.build.id=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${id}" ]] && id=$(grep -m1 -oP "(?<=^ro.vendor.build.id=).*" -hs vendor/build*.prop)
+[[ -z "${id}" ]] && id=$(grep -m1 -oP "(?<=^ro.system.build.id=).*" -hs {system,system/system}/build*.prop)
+incremental=$(grep -m1 -oP "(?<=^ro.build.version.incremental=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${incremental}" ]] && incremental=$(grep -m1 -oP "(?<=^ro.vendor.build.version.incremental=).*" -hs vendor/build*.prop)
+[[ -z "${incremental}" ]] && incremental=$(grep -m1 -oP "(?<=^ro.system.build.version.incremental=).*" -hs {system,system/system}/build*.prop)
+tags=$(grep -m1 -oP "(?<=^ro.build.tags=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${tags}" ]] && tags=$(grep -m1 -oP "(?<=^ro.vendor.build.tags=).*" -hs vendor/build*.prop)
+[[ -z "${tags}" ]] && tags=$(grep -m1 -oP "(?<=^ro.system.build.tags=).*" -hs {system,system/system}/build*.prop)
+platform=$(grep -m1 -oP "(?<=^ro.board.platform=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${platform}" ]] && platform=$(grep -m1 -oP "(?<=^ro.vendor.board.platform=).*" -hs vendor/build*.prop)
+[[ -z "${platform}" ]] && platform=$(grep -m1 -oP "(?<=^ro.system.board.platform=).*" -hs {system,system/system}/build*.prop)
+manufacturer=$(grep -m1 -oP "(?<=^ro.product.manufacturer=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.vendor.product.manufacturer=).*" -hs vendor/build*.prop)
+[[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.system.product.manufacturer=).*" -hs {system,system/system}/build*.prop)
+[[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.system.product.manufacturer=).*" -hs vendor/euclid/*/build.prop)
+[[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.product.manufacturer=).*" -hs {oppo_product,my_product}/build*.prop | head -1)
+[[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.product.manufacturer=).*" -hs vendor/euclid/*/build.prop)
+fingerprint=$(grep -m1 -oP "(?<=^ro.build.fingerprint=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" -hs vendor/build*.prop)
+[[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.system.build.fingerprint=).*" -hs {system,system/system}/build*.prop)
+[[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.product.build.fingerprint=).*" -hs product/build.prop)
+[[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.product.build.fingerprint=).*" -hs product/build*.prop)
+[[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.build.fingerprint=).*" -hs my_product/build.prop)
+[[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.system.build.fingerprint=).*" -hs my_product/build.prop)
+[[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" -hs my_product/build.prop)
+brand=$(grep -m1 -oP "(?<=^ro.product.brand=).*" -hs {system,system/system,vendor}/build*.prop | head -1)
+[[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.vendor.brand=).*" -hs vendor/build*.prop | head -1)
+[[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.vendor.product.brand=).*" -hs vendor/build*.prop | head -1)
+[[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.system.brand=).*" -hs {system,system/system}/build*.prop | head -1)
+[[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.system.brand=).*" -hs vendor/euclid/*/build.prop | head -1)
+[[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.odm.brand=).*" -hs vendor/odm/etc/build*.prop)
+[[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.brand=).*" -hs {oppo_product,my_product}/build*.prop | head -1)
+[[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.brand=).*" -hs vendor/euclid/*/build.prop | head -1)
 [[ -z "${brand}" ]] && brand=$(echo "$fingerprint" | cut -d'/' -f1)
-codename=$(grep -oP "(?<=^ro.product.device=).*" -hs {system,system/system,vendor}/build*.prop | head -1)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.vendor.device=).*" -hs vendor/build*.prop | head -1)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.vendor.product.device=).*" -hs vendor/build*.prop | head -1)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.system.device=).*" -hs {system,system/system}/build*.prop | head -1)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.system.device=).*" -hs vendor/euclid/*/build.prop | head -1)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.product.device=).*" -hs vendor/euclid/*/build.prop | head -1)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.device=).*" -hs oppo_product/build*.prop)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.product.device=).*" -hs oppo_product/build*.prop)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.device=).*" -hs my_product/build*.prop)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.system.device=).*" -hs my_product/build*.prop)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.product.vendor.device=).*" -hs my_product/build*.prop)
+codename=$(grep -m1 -oP "(?<=^ro.product.device=).*" -hs {system,system/system,vendor}/build*.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.vendor.device=).*" -hs vendor/build*.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.vendor.product.device=).*" -hs vendor/build*.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.system.device=).*" -hs {system,system/system}/build*.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.system.device=).*" -hs vendor/euclid/*/build.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.product.device=).*" -hs vendor/euclid/*/build.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.device=).*" -hs {oppo_product,my_product}/build*.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.product.device=).*" -hs oppo_product/build*.prop)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.system.device=).*" -hs my_product/build*.prop)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.vendor.device=).*" -hs my_product/build*.prop)
 [[ -z "${codename}" ]] && codename=$(echo "$fingerprint" | cut -d'/' -f3 | cut -d':' -f1)
-[[ -z "${codename}" ]] && codename=$(grep -oP "(?<=^ro.build.fota.version=).*" -hs {system,system/system}/build*.prop | cut -d'-' -f1 | head -1)
-description=$(grep -oP "(?<=^ro.build.description=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${description}" ]] && description=$(grep -oP "(?<=^ro.vendor.build.description=).*" -hs vendor/build*.prop)
-[[ -z "${description}" ]] && description=$(grep -oP "(?<=^ro.system.build.description=).*" -hs {system,system/system}/build*.prop)
-[[ -z "${description}" ]] && description=$(grep -oP "(?<=^ro.product.build.description=).*" -hs product/build.prop)
-[[ -z "${description}" ]] && description=$(grep -oP "(?<=^ro.product.build.description=).*" -hs product/build*.prop)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.build.fota.version=).*" -hs {system,system/system}/build*.prop | cut -d'-' -f1 | head -1)
+description=$(grep -m1 -oP "(?<=^ro.build.description=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${description}" ]] && description=$(grep -m1 -oP "(?<=^ro.vendor.build.description=).*" -hs vendor/build*.prop)
+[[ -z "${description}" ]] && description=$(grep -m1 -oP "(?<=^ro.system.build.description=).*" -hs {system,system/system}/build*.prop)
+[[ -z "${description}" ]] && description=$(grep -m1 -oP "(?<=^ro.product.build.description=).*" -hs product/build.prop)
+[[ -z "${description}" ]] && description=$(grep -m1 -oP "(?<=^ro.product.build.description=).*" -hs product/build*.prop)
 [[ -z "${description}" ]] && description="${flavor} ${release} ${id} ${incremental} ${tags}"
 branch=$(echo "${description}" | tr ' ' '-')
 repo=$(echo "${brand}"_"${codename}"_dump | tr '[:upper:]' '[:lower:]')
@@ -702,7 +750,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	find . -mindepth 2 -type d -name "\[SYS\]" -exec rm -rf {} \; 2>/dev/null
 	# Files larger than 76MB will be split into 47MB parts as *.aa, *.ab, etc.
 	mkdir -p "${TMPDIR}" 2>/dev/null
-	find . -size +76M | cut -d'/' -f'2-' >| "${TMPDIR}"/.largefiles
+	find . -size +62M | cut -d'/' -f'2-' >| "${TMPDIR}"/.largefiles
 	if [[ -s "${TMPDIR}"/.largefiles ]]; then
 		printf '#!/bin/bash\n\n' > join_split_files.sh
 		while read -r l; do
@@ -726,7 +774,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	else
 		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{ "name": "'"${repo}"'", "description": "'"${description}"'"}' "https://api.github.com/orgs/${GIT_ORG}/repos" >/dev/null 2>&1
 	fi
-	curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.mercy-preview+json" -d '{ "names": ["'"${manufacturer}"'","'"${platform}"'","'"${top_codename}"'"]}' "https://api.github.com/repos/${GIT_ORG}/${repo}/topics" 	# Update Repository Topics
+	curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.mercy-preview+json" -d '{ "names": ["'"${codename}"'","'"${manufacturer}"'","'"${platform}"'","'"${top_codename}"'","firmware","dump"]}' "https://api.github.com/repos/${GIT_ORG}/${repo}/topics" 	# Update Repository Topics
 	git remote add origin https://github.com/${GIT_ORG}/${repo}.git
 	git commit -asm "Add ${description}"
 	git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}" || (
@@ -774,4 +822,3 @@ else
 	printf "Dumping done locally.\n"
 	exit
 fi
-

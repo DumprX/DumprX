@@ -67,14 +67,14 @@ function tree_gen() {
 }
 function file_downdec() {
     printf "Downloading file %s...\n" "$2"
-    aria2c -q -c -s16 -x8 -m10 -l- --log-level=error -o "$2".tmp "$1"
+    aria2c -c -s16 -x8 -m10 --console-log-level=warn --summary-interval=0 -o "$2".tmp "$1"
     [[ ! -s "$2".tmp ]] && wget -O "$2".tmp -q --show-progress --progress=bar:force "$1"
     cat "$2.tmp" | openssl enc -d -aes-128-ctr -K $3 -iv $4 >"$2"
     rm -f "$2".tmp
 }
 function file_down() {
     printf "Downloading file %s...\n" "$2"
-    aria2c -q -c -s16 -x8 -m10 -l- --log-level=error -o "$2".tmp "$1"
+    aria2c -c -s16 -x8 -m10 --console-log-level=warn --summary-interval=0 -o "$2".tmp "$1"
     [[ ! -s "$2".tmp ]] && wget -O "$2".tmp -q --show-progress --progress=bar:force "$1"
     mv "$2".tmp "$2"
 }
@@ -127,7 +127,7 @@ function gdrive() {
     printf "Google Drive URL detected\n"
     FILE_ID="$(echo "${1:?}" | sed -r 's/.*([0-9a-zA-Z_-]{33}).*/\1/')"
     CONFIRM=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate "https://docs.google.com/uc?export=download&id=$FILE_ID" -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')
-    aria2c -q -c -s16 -x8 -m10 -l- --log-level=error --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$CONFIRM&id=$FILE_ID"
+    aria2c -c -s16 -x16 -m10 --console-log-level=warn --summary-interval=0 --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$CONFIRM&id=$FILE_ID"
 }
 
 if [[ "$1" == *"mega"* ]]; then
@@ -137,4 +137,3 @@ elif [[ "$1" == *"mediafire"* ]]; then
 elif [[ "$1" == *"drive.google.com"* ]]; then
     gdrive "$1"
 fi
-
