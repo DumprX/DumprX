@@ -54,36 +54,48 @@ ramdisk_size=$(od -A n -D -j 16 -N 4 $bootimg | sed 's/ //g')
 second_size=$(od -A n -D -j 24 -N 4 $bootimg | sed 's/ //g')
 page_size=$(od -A n -D -j 36 -N 4 $bootimg | sed 's/ //g')
 dtb_size=$(od -A n -D -j 40 -N 4 $bootimg | sed 's/ //g')
+dtbo_size=$(od -A n -D -j 1632 -N 4 $bootimg | sed 's/ //g')
+[ $dtbo_size -gt 0 ] && dtbo_addr=0x$(od -A n -X -j 1636 -N 4 $bootimg | sed 's/ //g' | sed -e 's/^0*//g')
 cmd_line=$(od -A n -S1 -j 64 -N 512 $bootimg)
 board=$(od -A n -S1 -j 48 -N 16 $bootimg)
-
+version=$(od -A n -D -j 40 -N 1 $bootimg | sed 's/ //g')
+if [ $version -gt 1 ]; then
+    dtb_size=$(od -A n -D -j 1648 -N 4 $bootimg | sed 's/ //g')
+    dtb_addr=0x$(od -A n -X -j 1652 -N 4 $bootimg | sed 's/ //g' | sed 's/^0*//g')
+fi
 base_addr=$((kernel_addr-0x00008000))
 kernel_offset=$((kernel_addr-base_addr))
 ramdisk_offset=$((ramdisk_addr-base_addr))
 second_offset=$((second_addr-base_addr))
 tags_offset=$((tags_addr-base_addr))
-
+dtbo_offset=$((dtbo_addr-base_addr))
+dtb_offset=$((dtb_addr-base_addr))
 base_addr=$(printf "%08x" $base_addr)
 kernel_offset=$(printf "%08x" $kernel_offset)
 ramdisk_offset=$(printf "%08x" $ramdisk_offset)
 second_offset=$(printf "%08x" $second_offset)
 tags_offset=$(printf "%08x" $tags_offset)
-
+dtbo_offset=$(printf "%08x" $dtbo_offset)
+dtb_offset=$(printf "%08x" $dtb_offset)
 base_addr=0x${base_addr:0-8}
 kernel_offset=0x${kernel_offset:0-8}
 ramdisk_offset=0x${ramdisk_offset:0-8}
 second_offset=0x${second_offset:0-8}
 tags_offset=0x${tags_offset:0-8}
+dtbo_offset=0x${dtbo_offset:0-8}
+dtb_offset=0x${dtb_offset:0-8}
 
 k_count=$(((kernel_size+page_size-1)/page_size))
 r_count=$(((ramdisk_size+page_size-1)/page_size))
 s_count=$(((second_size+page_size-1)/page_size))
 d_count=$(((dtb_size+page_size-1)/page_size))
+do_count=$(((dtbo_size+page_size-1)/page_size))
+
 k_offset=1
 r_offset=$((k_offset+k_count))
 s_offset=$((r_offset+r_count))
-d_offset=$((s_offset+s_count))
-
+do_offset=$((s_offset+s_count))
+d_offset=$((do_offset+do_count))
 #kernel
 dd if=$bootimg of=kernel_tmp bs=$page_size skip=$k_offset count=$k_count 2>/dev/null
 dd if=kernel_tmp of=kernel bs=$kernel_size count=1 2>/dev/null
@@ -103,8 +115,18 @@ if [ $dtb_size -gt 0 ]; then
     dd if=dt.img_tmp of=dt.img bs=$dtb_size count=1 2>/dev/null
     dt="$tempdir/dt.img"
     dt=$(basename $dt)
-    dt_name="dt=$dt\n"
     dt_size="dtb_size=$dtb_size\n"
+    [ $version -gt 1 ] && dt=dtb.img && mv $tempdir/dt.img $tempdir/dtb.img &&\
+        dt_size="dtb_offset=${dtb_offset}\n"${dt_size}
+    dt_name="dt=$dt\n"
+fi
+#dtbo
+if [ $dtbo_size -gt 0 ]; then
+    dd if=$bootimg of=dtbo.img_tmp bs=$page_size skip=$do_offset count=$do_count 2>/dev/null
+    dd if=dtbo.img_tmp of=dtbo.img bs=$dtbo_size count=1 2>/dev/null
+    dtbo="$tempdir/dtbo.img"
+    dtbo=$(basename $dtbo)
+    do_name="dtbo=$dtbo\n"
 fi
 rm -f *_tmp $(basename $1) $bootimg
 
@@ -113,31 +135,36 @@ ramdisk=ramdisk
 [ ! -s $kernel ] && exit
 
 # Print boot.img/recovery.img info
-[ ! -z "$board" ] && pout "  board          : $board"  
-pout "  kernel         : $kernel"
-pout "  ramdisk        : $ramdisk"
-pout "  page size      : $page_size"
-pout "  kernel size    : $kernel_size"
-pout "  ramdisk size   : $ramdisk_size"
+[ ! -z "$board" ] && pout "  board               : $board"  
+pout "  kernel              : $kernel"
+pout "  ramdisk             : $ramdisk"
+pout "  page size           : $page_size"
+pout "  kernel size         : $kernel_size"
+pout "  ramdisk size        : $ramdisk_size"
 [ ! -z $second_size ] && [ $second_size -gt 0 ] && \
-	pout "  second_size    : $second_size"
-[ $dtb_size -gt 0 ] && pout "  dtb size       : $dtb_size"
-pout "  base           : $base_addr"
-pout "  kernel offset  : $kernel_offset"
-pout "  ramdisk offset : $ramdisk_offset"
+	pout "  second_size         : $second_size"
+pout "  base                : $base_addr"
+pout "  kernel offset       : $kernel_offset"
+pout "  ramdisk offset      : $ramdisk_offset"
+[ $version -gt 0 ] && [ $dtbo_size -gt 0 ] && pout "  boot header version : $version" && \
+	pout "  dtbo                : $dtbo" && \
+	pout "  dtbo size           : $dtbo_size" && \
+	pout "  dtbo offset         : $dtbo_offset"
+[ $dtb_size -gt 0 ] && pout "  dtb img             : $dt" && \
+	pout "  dtb size            : $dtb_size"
+[ $version -gt 1 ] && pout "  dtb offset          : $dtb_offset"
 [ ! -z $second_size ] && [ $second_size -gt 0 ] && \
-	pout "  second_offset  : $second_offset"
-pout "  tags offset    : $tags_offset"
-[ $dtb_size -gt 0 ] && pout "  dtb img        : $dt"
-pout "  cmd line       : $cmd_line"
+	pout "  second_offset       : $second_offset"
+pout "  tags offset         : $tags_offset"
+pout "  cmd line            : $cmd_line"
 
 esq="'\"'\"'"
 escaped_cmd_line=$(echo $cmd_line | sed "s/'/$esq/g")
 
 # Write info to img_info, decompress ramdisk.packed
-printf "kernel=kernel\nramdisk=ramdisk\n${s_name}${dt_name}page_size=$page_size\n\
+printf "kernel=kernel\nramdisk=ramdisk\n${s_name}page_size=$page_size\n${do_name}${dt_name}\
 kernel_size=$kernel_size\nramdisk_size=$ramdisk_size\n${s_size}${dt_size}base_addr=$base_addr\nkernel_offset=$kernel_offset\n\
-ramdisk_offset=$ramdisk_offset\ntags_offset=$tags_offset\ncmd_line=\'$escaped_cmd_line\'\nboard=\"$board\"\n" > img_info
+ramdisk_offset=$ramdisk_offset\ntags_offset=$tags_offset\ndtbo_offset=$dtbo_offset\ncmd_line=\'$escaped_cmd_line\'\nboard=\"$board\"\n" > img_info
 
 # MTK ramdisk (MTK Header Size 512, MAGIC 0x58881688)
 mtk_header_magic="58881688"
