@@ -232,7 +232,6 @@ function superimage_extract() {
 }
 
 printf "Extracting firmware on: %s\n" "${OUTDIR}"
-
 cd "${TMPDIR}"/ || exit
 
 # Oppo .ozip Check
@@ -554,6 +553,8 @@ done
 
 # Process All partitions From TMPDIR Now
 for partition in ${PARTITIONS}; do
+	foundpart=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}.img")
+	7z e -y -- "${FILEPATH}" "${foundpart}" dummypartition 2>/dev/null
 	[[ -f "${partition}".img ]] && "${SIMG2IMG}" "${partition}".img "${OUTDIR}"/"${partition}".img 2>/dev/null
 	[[ ! -s "${OUTDIR}"/"${partition}".img && -f "${TMPDIR}"/"${partition}".img ]] && mv "${TMPDIR}"/"${partition}".img "${OUTDIR}"/"${partition}".img
 	if [[ "${EXT4PARTITIONS}" =~ (^|[[:space:]])"${partition}"($|[[:space:]]) && -f "${OUTDIR}"/"${partition}".img ]]; then
