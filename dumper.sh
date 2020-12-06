@@ -39,7 +39,7 @@ function _usage() {
 	printf "\t system.new.dat | system.new.dat.br | system.new.dat.xz\n"
 	printf "\t system.new.img | system.img | system-sign.img | UPDATE.APP\n"
 	printf "\t *.emmc.img | *.img.ext4 | system.bin | system-p | payload.bin\n"
-	printf "\t *.nb0 | .*chunk* | *.pac | *super*.img | *system*.sin\e[0m\n\n"
+	printf "\t *.nb0 | .*chunk* | *.ops | *.pac | *super*.img | *system*.sin\e[0m\n\n"
 }
 
 # Welcome Banner
@@ -106,6 +106,7 @@ KALLSYMS_FINDER="${UTILSDIR}"/vmlinux-to-elf/vmlinux_to_elf/kallsyms_finder.py
 OZIPDECRYPT="${UTILSDIR}"/oppo_ozip_decrypt/ozipdecrypt.py
 OFP_QC_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_qc_extract.py
 OFP_MTK_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_mtk_decrypt.py
+OPSDECRYPT="${UTILSDIR}"/oppo_decrypt/opscrypto.py
 LPUNPACK="${UTILSDIR}"/lpunpack
 SPLITUAPP="${UTILSDIR}"/splituapp.py
 PACEXTRACTOR="${UTILSDIR}"/pacextractor
@@ -212,7 +213,6 @@ else
 fi
 
 cd "${PROJECT_DIR}"/ || exit
-
 # Function for extracting superimage
 function superimage_extract() {
 	printf "Creating super.img.raw ...\n"
@@ -247,6 +247,33 @@ if [[ $(head -c12 "${FILEPATH}" 2>/dev/null | tr -d '\0') == "OPPOENCRYPT!" ]] |
 	elif [[ -f "${FILE%.*}".zip ]]; then
 		mv "${FILE%.*}".zip "${INPUTDIR}"/
 	fi
+	rm -rf "${TMPDIR:?}"/*
+	printf "Re-Loading The Decrypted Content.\n"
+	cd "${PROJECT_DIR}"/ || exit
+	( bash "${0}" "${PROJECT_DIR}/input/" 2>/dev/null || bash "${0}" "${INPUTDIR}"/"${FILE%.*}".zip ) || exit 1
+	exit
+fi
+# Oneplus .ops Check
+if 7z l -ba "${FILEPATH}" | grep -q ".ops"; then
+	printf "Oppo/Oneplus ops Firmware Detected Extracting...\n"
+	foundops=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".ops")
+	7z e -y "${FILEPATH}" "${foundops}" 2&>/dev/null >> "${TMPDIR}"/zip.log
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
+	mv "$(echo $foundops | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
+	sleep 1s
+	printf "Reloading the extracted OPS\n"
+	cd "${PROJECT_DIR}"/ || exit
+	( bash "${0}" "${PROJECT_DIR}/input/${foundops}" 2>/dev/null) || exit 1
+	exit
+fi
+if [[ "${EXTENSION}" == "ops" ]]; then
+	printf "Oppo/Oneplus ops Detected.\n"
+	# Either Move Downloaded/Re-Loaded File Or Copy Local File
+	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
+	printf "Decrypting ops & extracing...\n"
+	python3 "${OPSDECRYPT}" decrypt "${TMPDIR}"/"${FILE}"
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
+	mv "${TMPDIR}"/extract/* "${INPUTDIR}"/
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Decrypted Content.\n"
 	cd "${PROJECT_DIR}"/ || exit
@@ -512,7 +539,7 @@ elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" || [[ $(find
 		7z e -y "${FILEPATH}" -o"${TMPDIR}"/"${UNZIP_DIR}" 2>/dev/null >> "${TMPDIR}"/zip.log
 		for f in "${TMPDIR}"/"${UNZIP_DIR}"/*; do detox -r "${UNZIP_DIR}"/"${f}" 2>/dev/null; done
 	fi
-	zip_list=$(find ./"${UNZIP_DIR}" -type f -size +300M \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar" \) | cut -d'/' -f'2-' | sort)
+	zip_list=$(find ./"${UNZIP_DIR}" -type f -size +300M \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar"\) | cut -d'/' -f'2-' | sort)
 	mkdir -p "${INPUTDIR}" 2>/dev/null
 	rm -rf "${INPUTDIR:?}"/* 2>/dev/null
 	for file in ${zip_list}; do
