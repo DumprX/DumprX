@@ -17,7 +17,7 @@ function __bannerTop() {
     ╔══════════════════════════════════════════════════════════════════════════════╗
     ║    ╔═╗╦ ╦╔═╗╔═╗╔╗╔╦═╗ ╦  ╔═╗┬┬─┐┌┬┐┬ ┬┌─┐┬─┐┌─┐  ╔╦╗┬ ┬┌┬┐┌─┐┌─┐┬─┐          ║
     ║    ╠═╝╠═╣║ ║║╣ ║║║║╔╩╦╝  ╠╣ │├┬┘││││││├─┤├┬┘├┤    ║║│ ││││├─┘├┤ ├┬┘          ║
-    ║    ╩  ╩ ╩╚═╝╚═╝╝╚╝╩╩ ╚═  ╚  ┴┴└─┴ ┴└┴┘┴ ┴┴└─└─┘  ═╩╝└─┘┴ ┴┴  └─┘┴└─  v1.1.2  ║
+    ║    ╩  ╩ ╩╚═╝╚═╝╝╚╝╩╩ ╚═  ╚  ┴┴└─┴ ┴└┴┘┴ ┴┴└─└─┘  ═╩╝└─┘┴ ┴┴  └─┘┴└─  v1.1.3  ║
     ║ ---------------------------------------------------------------------------- ║
     ║  Based Upon Dumpyara from AndroidDumps, Infused w/ their Firmware_extractor  ║
     ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -35,7 +35,7 @@ function _usage() {
 	printf "\t\e[33m >> Must Wrap Website Link Inside Single-quotes ('')\e[0m\n"
 	sleep .2s
 	printf " \e[1;34m >> Supported File Formats For Direct Operation:\e[0m\n"
-	printf "\t\e[36m *.zip | *.rar | *.tar | *.7z | *.tar.md5 | *.ozip | *.kdz | ruu_*exe\n"
+	printf "\t\e[36m *.zip | *.rar | *.tar | *.7z | *.tar.md5 | *.ozip | *.ofp | *.kdz | ruu_*exe\n"
 	printf "\t system.new.dat | system.new.dat.br | system.new.dat.xz\n"
 	printf "\t system.new.img | system.img | system-sign.img | UPDATE.APP\n"
 	printf "\t *.emmc.img | *.img.ext4 | system.bin | system-p | payload.bin\n"
@@ -137,7 +137,7 @@ elif echo "${1}" | grep -q "${PROJECT_DIR}/input/" && [[ $(find "${INPUTDIR}" -m
 	printf "Input Directory Exists And Contains File\n"
 	cd "${INPUTDIR}"/ || exit
 	# Input File Variables
-	FILEPATH=$(find "$(pwd)" -maxdepth 1 -type f 2>/dev/null)	# INPUTDIR's FILEPATH is Always File
+	FILEPATH=$(find "$(pwd)" -maxdepth 1 -type f -size +300M 2>/dev/null)	# INPUTDIR's FILEPATH is Always File
 	FILE=${FILEPATH##*/}
 	EXTENSION=${FILEPATH##*.}
 	if echo "${EXTENSION}" | grep -q "zip\|rar\|7z\|tar$"; then
@@ -223,10 +223,6 @@ function superimage_extract() {
 	for partition in ${PARTITIONS}; do
 		( "${LPUNPACK}" --partition="${partition}"_a super.img.raw || "${LPUNPACK}" --partition="${partition}" super.img.raw ) 2>/dev/null
 		[[ -f "${partition}"_a.img ]] && mv "${partition}"_a.img "${partition}".img
-		if [[ -f "${FILE}" ]]; then
-			foundpartitions=$(7z l -ba "${FILE}" | gawk '{print $NF}' | grep "${partition}".img)
-			7z e -y -- "${FILE}" "${foundpartitions}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
-		fi
 	done
 	rm -rf super.img.raw
 }
@@ -254,10 +250,10 @@ if [[ $(head -c12 "${FILEPATH}" 2>/dev/null | tr -d '\0') == "OPPOENCRYPT!" ]] |
 	exit
 fi
 # Oneplus .ops Check
-if 7z l -ba "${FILEPATH}" | grep -q ".ops"; then
+if 7z l -ba "${FILEPATH}" | grep -q ".*.ops"; then
 	printf "Oppo/Oneplus ops Firmware Detected Extracting...\n"
-	foundops=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".ops")
-	7z e -y "${FILEPATH}" "${foundops}" 2&>/dev/null >> "${TMPDIR}"/zip.log
+	foundops=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ops")
+	7z e -y -- "${FILEPATH}" "${foundops}" */"${foundops}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
 	mv "$(echo $foundops | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
 	sleep 1s
@@ -283,11 +279,23 @@ fi
 # Oppo .ofp Check
 if 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q ".*.ofp"; then
 	printf "Oppo ofp Detected.\n"
-	7z e -y "${FILEPATH}" 2>/dev/null
-	ofpfile=$(ls -l | grep ".*.ofp" | gawk '{print $NF}')
-	printf "Found ofp firmware: %s\n" "$ofpfile"
-	if ! python3 "$OFP_QC_DECRYPT" "$ofpfile" out/; then
-		if ! python3 "$OFP_MTK_DECRYPT" "$ofpfile" out/; then
+	foundofp=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ofp")
+	7z e -y -- "${FILEPATH}" "${foundofp}" */"${foundofp}" 2>/dev/null >> "${TMPDIR}"/zip.log
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
+	mv "$(echo $foundofp | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
+	sleep 1s
+	printf "Reloading the extracted OFP\n"
+	cd "${PROJECT_DIR}"/ || exit
+	( bash "${0}" "${PROJECT_DIR}/input/${foundofp}" 2>/dev/null) || exit 1
+	exit
+fi
+if [[ "${EXTENSION}" == "ofp" ]]; then
+	printf "Oppo ofp Detected.\n"
+	# Either Move Downloaded/Re-Loaded File Or Copy Local File
+	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
+	printf "Decrypting ofp & extracing...\n"
+	if ! python3 "$OFP_QC_DECRYPT" "${TMPDIR}"/"${FILE}" out/; then
+		if ! python3 "$OFP_MTK_DECRYPT" "${TMPDIR}"/"${FILE}" out/; then
 			printf "ofp decryption error.\n" && exit 1
 		fi
 	fi
@@ -296,7 +304,7 @@ if 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q ".*.ofp"; then
 		mv "${TMPDIR}"/out/* "${INPUTDIR}"/
 	fi
 	rm -rf "${TMPDIR:?}"/*
-	printf "Re-Loading The Decrypted Zip File.\n"
+	printf "Re-Loading The Decrypted Contents.\n"
 	cd "${PROJECT_DIR}"/ || exit
 	( bash "${0}" "${PROJECT_DIR}/input/" ) || exit 1
 	exit
@@ -582,7 +590,7 @@ done
 for partition in ${PARTITIONS}; do
 	if [[ ! -f "${partition}".img ]]; then
 		foundpart=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}.img")
-		7z e -y -- "${FILEPATH}" "${foundpart}" */"${foundpart}" 2>/dev/null
+		7z e -y -- "${FILEPATH}" "${foundpart}" */"${foundpart}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	fi
 	[[ -f "${partition}".img ]] && "${SIMG2IMG}" "${partition}".img "${OUTDIR}"/"${partition}".img 2>/dev/null
 	[[ ! -s "${OUTDIR}"/"${partition}".img && -f "${TMPDIR}"/"${partition}".img ]] && mv "${TMPDIR}"/"${partition}".img "${OUTDIR}"/"${partition}".img

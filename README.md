@@ -1,6 +1,6 @@
 <div align="center">
 
-  <h1>Phoenix Firmware Dumper v1.1.2</h1>
+  <h1>Phoenix Firmware Dumper v1.1.3</h1>
 
   <h4>Based Upon Dumpyara from AndroidDumps, Infused w/ their Firmware_extractor</h4>
 
@@ -49,11 +49,11 @@ Help Context:
         2. Filehosters like - mega.nz | mediafire | google drive | androidfilehost
          >> Must Wrap Website Link Inside Single-quotes ('')
   >> Supported File Formats For Direct Operation:
-         *.zip | *.rar | *.tar | *.7z | *.tar.md5 | *.ozip | *.kdz | ruu_*exe
+         *.zip | *.rar | *.tar | *.7z | *.tar.md5 | *.ozip | *.ofp | *.kdz | ruu_*exe
          system.new.dat | system.new.dat.br | system.new.dat.xz
          system.new.img | system.img | system-sign.img | UPDATE.APP
          *.emmc.img | *.img.ext4 | system.bin | system-p | payload.bin
-         *.nb0 | .*chunk* | *.pac | *super*.img | *system*.sin
+         *.nb0 | .*chunk* | *.ops | *.pac | *super*.img | *system*.sin
 ```
 
 ## How to use it to Upload the Dump in GitHub
@@ -96,6 +96,8 @@ Credit for those tools goes to everyone whosoever worked hard to put all those p
 - ozipdecrypt.py (Oppo/Oneplus .ozip Firmware decrypter v1.2, python script)
   - by @bkerler
 - ofp\_qc\_extract.py and ofp\_mtk\_decrypt.py (Oppo .ofp firmware extractor, python scripts)
+  - by @bkerler
+- opscrypto.py (OnePlus/Oppo ops firmware extractor, python script)
   - by @bkerler
 - lpunpack (OnePlus/Other super.img unpacker, binary built from source)
   - by @LonelyFool
