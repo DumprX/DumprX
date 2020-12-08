@@ -335,7 +335,7 @@ if [[ -f "${FILEPATH}" ]]; then
 		if 7z l -ba "${FILEPATH}" | grep -q "${filename}"; then
 			printf "%s Detected For %s\n" "${filename}" "${outname}"
 			foundfile=$(7z l -ba "${FILEPATH}" | grep "${filename}" | awk '{print $NF}')
-			7z e -y -- "${FILEPATH}" "${foundfile}" 2>/dev/null >> "${TMPDIR}"/zip.log
+			7z e -y -- "${FILEPATH}" "${foundfile}" */"${foundfile}" 2>/dev/null >> "${TMPDIR}"/zip.log
 			output=$(ls -- *"${filename}"*) 2>/dev/null
 			[[ ! -e "${TMPDIR}"/"${outname}".img ]] && mv "${output}" "${TMPDIR}"/"${outname}".img
 			"${SIMG2IMG}" "${TMPDIR}"/"${outname}".img "${OUTDIR}"/"${outname}".img 2>/dev/null
@@ -580,8 +580,10 @@ done
 
 # Process All partitions From TMPDIR Now
 for partition in ${PARTITIONS}; do
-	foundpart=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}.img")
-	7z e -y -- "${FILEPATH}" "${foundpart}" dummypartition 2>/dev/null
+	if [[ ! -f "${partition}".img ]]; then
+		foundpart=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}.img")
+		7z e -y -- "${FILEPATH}" "${foundpart}" */"${foundpart}" 2>/dev/null
+	fi
 	[[ -f "${partition}".img ]] && "${SIMG2IMG}" "${partition}".img "${OUTDIR}"/"${partition}".img 2>/dev/null
 	[[ ! -s "${OUTDIR}"/"${partition}".img && -f "${TMPDIR}"/"${partition}".img ]] && mv "${TMPDIR}"/"${partition}".img "${OUTDIR}"/"${partition}".img
 	if [[ "${EXT4PARTITIONS}" =~ (^|[[:space:]])"${partition}"($|[[:space:]]) && -f "${OUTDIR}"/"${partition}".img ]]; then
@@ -663,7 +665,7 @@ if [[ -d "vendor/euclid" ]]; then
 	for f in *.img; do
 		[[ -f "${f}" ]] || continue
 		7z x "${f}" -o"${f/.img/}"
-		rm -fv "${f}"
+		rm -f "${f}"
 	done
 	popd || exit 1
 fi
@@ -776,7 +778,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	curl -sf "https://raw.githubusercontent.com/${GIT_ORG}/${repo}/${branch}/all_files.txt" 2>/dev/null && { printf "Firmware already dumped!\nGo to https://github.com/%s/%s/tree/%s\n" "${GIT_ORG}" "${repo}" "${branch}" && exit 1; }
 	# Remove The Journal File Inside System/Vendor
 	find . -mindepth 2 -type d -name "\[SYS\]" -exec rm -rf {} \; 2>/dev/null
-	# Files larger than 76MB will be split into 47MB parts as *.aa, *.ab, etc.
+	# Files larger than 62MB will be split into 47MB parts as *.aa, *.ab, etc.
 	mkdir -p "${TMPDIR}" 2>/dev/null
 	find . -size +62M | cut -d'/' -f'2-' >| "${TMPDIR}"/.largefiles
 	if [[ -s "${TMPDIR}"/.largefiles ]]; then
