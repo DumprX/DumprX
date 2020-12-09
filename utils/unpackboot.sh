@@ -39,10 +39,16 @@ pout "Unpack & decompress $1 to $2"
 cp -f $1 $tempdir/
 cd $tempdir
 bootimg="$(basename $1)"
-offset=$(grep -abo ANDROID! $bootimg | cut -f 1 -d :)
+offset=$(grep -abo "ANDROID!\|VNDRBOOT" $bootimg | cut -f 1 -d :)
 [ -z $offset ] && exit
 if [ $offset -gt 0 ]; then
     dd if=$bootimg of=bootimg bs=$offset skip=1 2>/dev/null
+fi
+header_addr=40
+VNDRBOOT=false
+if grep -qabo VNDRBOOT $bootimg; then
+    VNDRBOOT=true
+    header_addr=8
 fi
 
 kernel_addr=0x$(od -A n -X -j 12 -N 4 $bootimg | sed 's/ //g' | sed 's/^0*//g')
@@ -58,10 +64,42 @@ dtbo_size=$(od -A n -D -j 1632 -N 4 $bootimg | sed 's/ //g')
 [ $dtbo_size -gt 0 ] && dtbo_addr=0x$(od -A n -X -j 1636 -N 4 $bootimg | sed 's/ //g' | sed -e 's/^0*//g')
 cmd_line=$(od -A n -S1 -j 64 -N 512 $bootimg)
 board=$(od -A n -S1 -j 48 -N 16 $bootimg)
-version=$(od -A n -D -j 40 -N 1 $bootimg | sed 's/ //g')
-if [ $version -gt 1 ]; then
+version=$(od -A n -D -j $header_addr -N 1 $bootimg | sed 's/ //g')
+if [ $version -eq 2 ]; then
     dtb_size=$(od -A n -D -j 1648 -N 4 $bootimg | sed 's/ //g')
     dtb_addr=0x$(od -A n -X -j 1652 -N 4 $bootimg | sed 's/ //g' | sed 's/^0*//g')
+elif [ $version -eq 3 ]; then
+    page_size=4096
+    board=
+    kernel_size=0
+    kernel_addr=
+    second_size=0
+    second_addr=
+    ramdisk_size=
+    ramdisk_addr=
+    cmd_line=
+    tags_addr=
+    dtb_size=0
+    dtb_addr=
+    if [ "$VNDRBOOT" = "true" ]; then
+        kernel_addr=0x$(od -A n -X -j 16 -N 4 $bootimg | sed "s/ //g" | sed "s/^0*//g")
+        ramdisk_addr=0x$(od -A n -X -j 20 -N 4 $bootimg | sed "s/ //g" | sed "s/^0*//g")
+        ramdisk_size=$(od -A n -D -j 24 -N 4 $bootimg | sed "s/ //g")
+        cmd_line=$(od -A n -S1 -j 28 -N 2048 $bootimg)
+        tags_addr=0x$(od -A n -X -j 2076 -N 4 $bootimg | sed "s/ //g" | sed "s/^0*//g")
+        dtb_size=$(od -A n -D -j 2100 -N 4 $bootimg | sed "s/ //g")
+        dtb_addr=0x$(od -A n -X -j 2104 -N 4 $bootimg | sed "s/ //g" | sed "s/^0*//g")
+    else
+        kernel_addr=0x00008000 # To reset the base addr to 0
+        kernel_size=$(od -A n -D -j 8 -N 4 $bootimg | sed "s/ //g")
+        ramdisk_size=$(od -A n -D -j 12 -N 4 $bootimg | sed "s/ //g")
+        cmd_line=$(od -A n -S1 -j 44 -N 1536 $bootimg)
+        os_version=$(od -A n -D -j 16 -N 4 $bootimg | sed "s/ //g")
+	patch_level=$(($os_version & ((1<<11) - 1)))
+        os_version=$(($os_version>>11))
+        os_version=$(($os_version>>14)).$(($os_version>>7 & ((1<<7) - 1))).$(($os_version & ((1<<7) - 1)))
+        patch_level=$((($patch_level>>4) + 2000)):$(($patch_level & ((1<<4) - 1)))
+    fi
 fi
 base_addr=$((kernel_addr-0x00008000))
 kernel_offset=$((kernel_addr-base_addr))
@@ -84,6 +122,14 @@ second_offset=0x${second_offset:0-8}
 tags_offset=0x${tags_offset:0-8}
 dtbo_offset=0x${dtbo_offset:0-8}
 dtb_offset=0x${dtb_offset:0-8}
+
+if [ $version -gt 2 ] && [ "$VNDRBOOT" == "false" ]; then
+    tags_offset=
+    ramdisk_offset=
+elif [ "$VNDRBOOT" == "true" ]; then
+    kernel=
+    dtbo_offset=
+fi
 
 k_count=$(((kernel_size+page_size-1)/page_size))
 r_count=$(((ramdisk_size+page_size-1)/page_size))
@@ -132,29 +178,37 @@ rm -f *_tmp $(basename $1) $bootimg
 
 kernel=kernel
 ramdisk=ramdisk
-[ ! -s $kernel ] && exit
+[ "$VNDRBOOT" == "false" ] && [ ! -s $kernel ] && exit
 
 # Print boot.img/recovery.img info
-[ ! -z "$board" ] && pout "  board               : $board"  
-pout "  kernel              : $kernel"
+[ ! -z "$board" ] && pout "  board               : $board"
+[ $version -lt 3 ] || [ "$VNDRBOOT" == "false" ] && \
+	pout "  kernel              : $kernel"
 pout "  ramdisk             : $ramdisk"
 pout "  page size           : $page_size"
-pout "  kernel size         : $kernel_size"
-pout "  ramdisk size        : $ramdisk_size"
+[ $version -lt 3 ] || [ "$VNDRBOOT" == "false" ] && \
+	pout "  kernel size         : $kernel_size" && \
+	pout "  ramdisk size        : $ramdisk_size"
 [ ! -z $second_size ] && [ $second_size -gt 0 ] && \
 	pout "  second_size         : $second_size"
 pout "  base                : $base_addr"
-pout "  kernel offset       : $kernel_offset"
-pout "  ramdisk offset      : $ramdisk_offset"
+[ $version -lt 3 ] || [ "$VNDRBOOT" == "true" ] && \
+	pout "  kernel offset       : $kernel_offset" && \
+	pout "  ramdisk offset      : $ramdisk_offset"
 [ $version -gt 0 ] && [ $dtbo_size -gt 0 ] && pout "  boot header version : $version" && \
 	pout "  dtbo                : $dtbo" && \
 	pout "  dtbo size           : $dtbo_size" && \
 	pout "  dtbo offset         : $dtbo_offset"
 [ $dtb_size -gt 0 ] && pout "  dtb img             : $dt" && \
 	pout "  dtb size            : $dtb_size"
-[ $version -gt 1 ] && pout "  dtb offset          : $dtb_offset"
+[ $version -gt 1 ] && [ "$VNDRBOOT" == "true" ] && \
+	pout "  dtb offset          : $dtb_offset"
 [ ! -z $second_size ] && [ $second_size -gt 0 ] && \
 	pout "  second_offset       : $second_offset"
+[ ! -z $os_version ] || [ ! -z $patch_level ] && \
+	pout "  os_version          : $os_version" && \
+	pout "  os_patch_level      : $patch_level" && \
+	os_data="os_version=$os_version\nos_patch_level=$patch_level\n"
 pout "  tags offset         : $tags_offset"
 pout "  cmd line            : $cmd_line"
 
@@ -164,7 +218,7 @@ escaped_cmd_line=$(echo $cmd_line | sed "s/'/$esq/g")
 # Write info to img_info, decompress ramdisk.packed
 printf "kernel=kernel\nramdisk=ramdisk\n${s_name}page_size=$page_size\n${do_name}${dt_name}\
 kernel_size=$kernel_size\nramdisk_size=$ramdisk_size\n${s_size}${dt_size}base_addr=$base_addr\nkernel_offset=$kernel_offset\n\
-ramdisk_offset=$ramdisk_offset\ntags_offset=$tags_offset\ndtbo_offset=$dtbo_offset\ncmd_line=\'$escaped_cmd_line\'\nboard=\"$board\"\n" > img_info
+ramdisk_offset=$ramdisk_offset\ntags_offset=$tags_offset\ndtbo_offset=$dtbo_offset\n${os_data}cmd_line=\'$escaped_cmd_line\'\nboard=\"$board\"\n" > img_info
 
 # MTK ramdisk (MTK Header Size 512, MAGIC 0x58881688)
 mtk_header_magic="58881688"

@@ -122,7 +122,7 @@ GDRIVE="${UTILSDIR}"/downloaders/gdrive.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
 
 # Partition List That Are Currently Supported
-PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo boot recovery tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap"
+PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo boot vendor_boot recovery tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap"
 EXT4PARTITIONS="system vendor cust odm oem factory product xrom systemex oppo_product preload_common"
 OTHERPARTITIONS="tz.mbn:tz tz.img:tz modem.img:modem NON-HLOS:modem boot-verified.img:boot recovery-verified.img:recovery dtbo-verified.img:dtbo"
 
@@ -544,10 +544,10 @@ elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" || [[ $(find
 	printf "Rar/Zip/7Zip/Tar Archived Firmware Detected\n"
 	if [[ -f "${FILEPATH}" ]]; then
 		mkdir -p "${TMPDIR}"/"${UNZIP_DIR}" 2>/dev/null
-		7z e -y "${FILEPATH}" -o"${TMPDIR}"/"${UNZIP_DIR}" 2>/dev/null >> "${TMPDIR}"/zip.log
+		7z e -y "${FILEPATH}" -o"${TMPDIR}"/"${UNZIP_DIR}"  >> "${TMPDIR}"/zip.log
 		for f in "${TMPDIR}"/"${UNZIP_DIR}"/*; do detox -r "${UNZIP_DIR}"/"${f}" 2>/dev/null; done
 	fi
-	zip_list=$(find ./"${UNZIP_DIR}" -type f -size +300M \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar"\) | cut -d'/' -f'2-' | sort)
+	zip_list=$(find ./"${UNZIP_DIR}" -type f -size +300M \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar" \) | cut -d'/' -f'2-' | sort)
 	mkdir -p "${INPUTDIR}" 2>/dev/null
 	rm -rf "${INPUTDIR:?}"/* 2>/dev/null
 	for file in ${zip_list}; do
@@ -629,10 +629,30 @@ if [[ -f "${OUTDIR}"/boot.img ]]; then
 	bash "${EXTRACT_IKCONFIG}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/ikconfig >/dev/null 2>&1
 	[[ ! -s "${OUTDIR}"/bootRE/ikconfig ]] && rm -f "${OUTDIR}"/bootRE/ikconfig 2>/dev/null
 	# vmlinux-to-elf
-	python3 "${KALLSYMS_FINDER}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/boot_kallsyms.txt >/dev/null 2>&1
-	printf "boot_kallsyms.txt generated\n"
+	if [ ! -f "${OUTDIR}"/vendor_boot.img ]; then
+		python3 "${KALLSYMS_FINDER}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/boot_kallsyms.txt >/dev/null 2>&1
+		printf "boot_kallsyms.txt generated\n"
+	else
+		python3 "${KALLSYMS_FINDER}" "${OUTDIR}"/boot/kernel > "${OUTDIR}"/bootRE/kernel_kallsyms.txt >/dev/null 2>&1
+		printf "kernel_kallsyms.txt generated\n"
+	fi
 	python3 "${VMLINUX2ELF}" "${OUTDIR}"/boot.img "${OUTDIR}"/bootRE/boot.elf >/dev/null 2>&1
 	printf "boot.elf generated\n"
+fi
+
+# Extract vendor_boot.img
+if [[ -f "${OUTDIR}"/vendor_boot.img ]]; then
+	# Extract dts
+	mkdir -p "${OUTDIR}"/vendor_bootimg "${OUTDIR}"/vendor_bootdts 2>/dev/null
+	python3 "${DTB_EXTRACTOR}" "${OUTDIR}"/vendor_boot.img -o "${OUTDIR}"/vendor_bootimg >/dev/null
+	find "${OUTDIR}"/vendor_bootimg -name '*.dtb' -type f | gawk -F'/' '{print $NF}' | while read -r i; do "${DTC}" -q -s -f -I dtb -O dts -o vendor_bootdts/"${i/\.dtb/.dts}" vendor_bootimg/"${i}"; done 2>/dev/null
+	bash "${UNPACKBOOT}" "${OUTDIR}"/vendor_boot.img "${OUTDIR}"/vendor_boot 2>/dev/null
+	printf "Vendor Boot extracted\n"
+	# extract-ikconfig
+	mkdir -p "${OUTDIR}"/vendor_bootRE
+	# vmlinux-to-elf
+	python3 "${VMLINUX2ELF}" "${OUTDIR}"/vendor_boot.img "${OUTDIR}"/vendor_bootRE/vendor_boot.elf >/dev/null 2>&1
+	printf "vendor_boot.elf generated\n"
 fi
 
 # Extract recovery.img
