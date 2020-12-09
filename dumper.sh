@@ -185,12 +185,12 @@ else
 		printf "Directory Detected.\n"
 		# TODO: Need To Add Check-Firmware Function, Then Move To OUTDIR/TMPDIR
 		# UPDATE:: Local Folder With Extracted {system,vendor}.img Or {system,vendor}.new.dat* Is Currently Supported
-		if find "${FILEPATH}" -maxdepth 1 -type f | grep -q ".*.tar$\|.*.zip\|.*.rar\|.*.7z"; then
+		if find "${FILEPATH}" -maxdepth 1 -type f | grep -v "compatibility.zip" | grep -q ".*.tar$\|.*.zip\|.*.rar\|.*.7z"; then
 			printf "Supplied Folder Has Compressed Archive That Needs To Re-Load\n"
 			# Set From Download Directory
-			ArcPath=$(find "${INPUTDIR}"/ -maxdepth 1 -type f \( -name "*.tar" -o -name "*.zip" -o -name "*.rar" -o -name "*.7z" \) -print)
+			ArcPath=$(find "${INPUTDIR}"/ -maxdepth 1 -type f \( -name "*.tar" -o -name "*.zip" -o -name "*.rar" -o -name "*.7z" \) -print | grep -v "compatibility.zip")
 			# If Empty, Set From Original Local Folder
-			[[ -z "${ArcPath}" ]] && ArcPath=$(find "${FILEPATH}"/ -maxdepth 1 -type f \( -name "*.tar" -o -name "*.zip" -o -name "*.rar" -o -name "*.7z" \) -print)
+			[[ -z "${ArcPath}" ]] && ArcPath=$(find "${FILEPATH}"/ -maxdepth 1 -type f \( -name "*.tar" -o -name "*.zip" -o -name "*.rar" -o -name "*.7z" \) -print | grep -v "compatibility.zip")
 			if ! echo "${ArcPath}" | grep -q " "; then
 				# Assuming There're Only One Archive To Re-Load And Process
 				cd "${PROJECT_DIR}"/ || exit
@@ -545,13 +545,13 @@ elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" || [[ $(find
 	if [[ -f "${FILEPATH}" ]]; then
 		mkdir -p "${TMPDIR}"/"${UNZIP_DIR}" 2>/dev/null
 		7z e -y "${FILEPATH}" -o"${TMPDIR}"/"${UNZIP_DIR}"  >> "${TMPDIR}"/zip.log
-		for f in "${TMPDIR}"/"${UNZIP_DIR}"/*; do detox -r "${UNZIP_DIR}"/"${f}" 2>/dev/null; done
+		for f in "${TMPDIR}"/"${UNZIP_DIR}"/*; do detox -r "${f}" 2>/dev/null; done
 	fi
 	zip_list=$(find ./"${UNZIP_DIR}" -type f -size +300M \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar" \) | cut -d'/' -f'2-' | sort)
 	mkdir -p "${INPUTDIR}" 2>/dev/null
 	rm -rf "${INPUTDIR:?}"/* 2>/dev/null
 	for file in ${zip_list}; do
-		mv "${TMPDIR}"/"${UNZIP_DIR}"/"${file}" "${INPUTDIR}"/
+		mv "${TMPDIR}"/"${file}" "${INPUTDIR}"/
 		rm -rf "${TMPDIR:?}"/*
 		cd "${PROJECT_DIR}"/ || exit
 		( bash "${0}" "${INPUTDIR}"/"${file}" ) || exit 1
