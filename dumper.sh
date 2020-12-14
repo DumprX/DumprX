@@ -35,11 +35,12 @@ function _usage() {
 	printf "\t\e[33m >> Must Wrap Website Link Inside Single-quotes ('')\e[0m\n"
 	sleep .2s
 	printf " \e[1;34m >> Supported File Formats For Direct Operation:\e[0m\n"
-	printf "\t\e[36m *.zip | *.rar | *.tar | *.7z | *.tar.md5 | *.ozip | *.ofp | *.kdz | ruu_*exe\n"
+	printf "\t\e[36m *.zip | *.rar | *.7z | *.tar | *.tar.gz | *.tgz | *.tar.md5\n"
+	printf "\t *.ozip | *.ofp | *.ops | *.kdz | ruu_*exe\n"
 	printf "\t system.new.dat | system.new.dat.br | system.new.dat.xz\n"
 	printf "\t system.new.img | system.img | system-sign.img | UPDATE.APP\n"
 	printf "\t *.emmc.img | *.img.ext4 | system.bin | system-p | payload.bin\n"
-	printf "\t *.nb0 | .*chunk* | *.ops | *.pac | *super*.img | *system*.sin\e[0m\n\n"
+	printf "\t *.nb0 | .*chunk* | *.pac | *super*.img | *system*.sin\e[0m\n\n"
 }
 
 # Welcome Banner
@@ -305,6 +306,22 @@ if [[ "${EXTENSION}" == "ofp" ]]; then
 	fi
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Decrypted Contents.\n"
+	cd "${PROJECT_DIR}"/ || exit
+	( bash "${0}" "${PROJECT_DIR}/input/" ) || exit 1
+	exit
+fi
+# Xiaomi .tgz Check
+if [[ "${FILE##*.}" == "tgz" || "${FILE#*.}" == "tar.gz" ]]; then
+	printf "Xiaomi gzipped tar archive found.\n"
+	if [[ -f "${INPUTDIR}"/"${FILE}" ]]; then
+		tar xzvf "${INPUTDIR}"/"${FILE}" -C "${INPUTDIR}"/ --transform='s/.*\///'
+		rm -rf "${INPUTDIR}"/"${FILE}"
+	elif [[ -f "${FILEPATH}" ]]; then
+		tar xzvf "${FILEPATH}" -C "${INPUTDIR}"/ --transform='s/.*\///'
+	fi
+	find "${INPUTDIR}"/ -type d -empty -delete     # Delete Empth Folder Leftover
+	rm -rf "${TMPDIR:?}"/*
+	printf "Re-Loading The Extracted Contents.\n"
 	cd "${PROJECT_DIR}"/ || exit
 	( bash "${0}" "${PROJECT_DIR}/input/" ) || exit 1
 	exit

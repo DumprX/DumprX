@@ -49,11 +49,12 @@ Help Context:
         2. Filehosters like - mega.nz | mediafire | google drive | androidfilehost
          >> Must Wrap Website Link Inside Single-quotes ('')
   >> Supported File Formats For Direct Operation:
-         *.zip | *.rar | *.tar | *.7z | *.tar.md5 | *.ozip | *.ofp | *.kdz | ruu_*exe
+         *.zip | *.rar | *.7z | *.tar | *.tar.gz | *.tgz | *.tar.md5
+         *.ozip | *.ofp | *.ops | *.kdz | ruu_*exe
          system.new.dat | system.new.dat.br | system.new.dat.xz
          system.new.img | system.img | system-sign.img | UPDATE.APP
          *.emmc.img | *.img.ext4 | system.bin | system-p | payload.bin
-         *.nb0 | .*chunk* | *.ops | *.pac | *super*.img | *system*.sin
+         *.nb0 | .*chunk* | *.pac | *super*.img | *system*.sin
 ```
 
 ## How to use it to Upload the Dump in GitHub
