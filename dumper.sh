@@ -119,7 +119,6 @@ EXTRACT_IKCONFIG="${UTILSDIR}"/extract-ikconfig
 UNPACKBOOT="${UTILSDIR}"/unpackboot.sh
 # Set Names of Downloader Utility Programs
 MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
-GDRIVE="${UTILSDIR}"/downloaders/gdrive.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
 
 # Partition List That Are Currently Supported
@@ -184,8 +183,6 @@ else
 	fi
 	if [[ -d "${FILEPATH}" || "${EXTENSION}" == "" ]]; then
 		printf "Directory Detected.\n"
-		# TODO: Need To Add Check-Firmware Function, Then Move To OUTDIR/TMPDIR
-		# UPDATE:: Local Folder With Extracted {system,vendor}.img Or {system,vendor}.new.dat* Is Currently Supported
 		if find "${FILEPATH}" -maxdepth 1 -type f | grep -v "compatibility.zip" | grep -q ".*.tar$\|.*.zip\|.*.rar\|.*.7z"; then
 			printf "Supplied Folder Has Compressed Archive That Needs To Re-Load\n"
 			# Set From Download Directory
@@ -222,6 +219,7 @@ function superimage_extract() {
 		mv super.img super.img.raw
 	fi
 	for partition in ${PARTITIONS}; do
+		printf "Extracting partitions from super image\n"
 		( "${LPUNPACK}" --partition="${partition}"_a super.img.raw || "${LPUNPACK}" --partition="${partition}" super.img.raw ) 2>/dev/null
 		[[ -f "${partition}"_a.img ]] && mv "${partition}"_a.img "${partition}".img
 	done
@@ -238,7 +236,7 @@ if [[ $(head -c12 "${FILEPATH}" 2>/dev/null | tr -d '\0') == "OPPOENCRYPT!" ]] |
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
 	printf "Decrypting ozip And Making A Zip...\n"
 	python3 "${OZIPDECRYPT}" "${TMPDIR}"/"${FILE}"
-	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	if [[ -d "${TMPDIR}"/out ]]; then
 		mv "${TMPDIR}"/out/* "${INPUTDIR}"/
 	elif [[ -f "${FILE%.*}".zip ]]; then
@@ -255,8 +253,8 @@ if 7z l -ba "${FILEPATH}" | grep -q ".*.ops"; then
 	printf "Oppo/Oneplus ops Firmware Detected Extracting...\n"
 	foundops=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ops")
 	7z e -y -- "${FILEPATH}" "${foundops}" */"${foundops}" 2>/dev/null >> "${TMPDIR}"/zip.log
-	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
-	mv "$(echo $foundops | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
+	mv "$(echo "${foundops}" | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
 	sleep 1s
 	printf "Reloading the extracted OPS\n"
 	cd "${PROJECT_DIR}"/ || exit
@@ -269,7 +267,7 @@ if [[ "${EXTENSION}" == "ops" ]]; then
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
 	printf "Decrypting ops & extracing...\n"
 	python3 "${OPSDECRYPT}" decrypt "${TMPDIR}"/"${FILE}"
-	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	mv "${TMPDIR}"/extract/* "${INPUTDIR}"/
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Decrypted Content.\n"
@@ -282,8 +280,8 @@ if 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q ".*.ofp"; then
 	printf "Oppo ofp Detected.\n"
 	foundofp=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ofp")
 	7z e -y -- "${FILEPATH}" "${foundofp}" */"${foundofp}" 2>/dev/null >> "${TMPDIR}"/zip.log
-	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
-	mv "$(echo $foundofp | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
+	mv "$(echo "${foundofp}" | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
 	sleep 1s
 	printf "Reloading the extracted OFP\n"
 	cd "${PROJECT_DIR}"/ || exit
@@ -300,7 +298,7 @@ if [[ "${EXTENSION}" == "ofp" ]]; then
 			printf "ofp decryption error.\n" && exit 1
 		fi
 	fi
-	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR}"/* 2>/dev/null
+	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	if [[ -d "${TMPDIR}"/out ]]; then
 		mv "${TMPDIR}"/out/* "${INPUTDIR}"/
 	fi
@@ -315,7 +313,7 @@ if [[ "${FILE##*.}" == "tgz" || "${FILE#*.}" == "tar.gz" ]]; then
 	printf "Xiaomi gzipped tar archive found.\n"
 	if [[ -f "${INPUTDIR}"/"${FILE}" ]]; then
 		tar xzvf "${INPUTDIR}"/"${FILE}" -C "${INPUTDIR}"/ --transform='s/.*\///'
-		rm -rf "${INPUTDIR}"/"${FILE}"
+		rm -rf -- "${INPUTDIR:?}"/"${FILE}"
 	elif [[ -f "${FILEPATH}" ]]; then
 		tar xzvf "${FILEPATH}" -C "${INPUTDIR}"/ --transform='s/.*\///'
 	fi
@@ -355,13 +353,12 @@ fi
 # Extract & Move Raw Otherpartitons To OUTDIR
 if [[ -f "${FILEPATH}" ]]; then
 	for otherpartition in ${OTHERPARTITIONS}; do
-		filename=$(echo "${otherpartition}" | cut -d':' -f1)
-		outname=$(echo "${otherpartition}" | cut -d':' -f2)
+		filename=${otherpartition%:*} && outname=${otherpartition#*:}
 		if 7z l -ba "${FILEPATH}" | grep -q "${filename}"; then
 			printf "%s Detected For %s\n" "${filename}" "${outname}"
 			foundfile=$(7z l -ba "${FILEPATH}" | grep "${filename}" | awk '{print $NF}')
 			7z e -y -- "${FILEPATH}" "${foundfile}" */"${foundfile}" 2>/dev/null >> "${TMPDIR}"/zip.log
-			output=$(ls -- *"${filename}"*) 2>/dev/null
+			output=$(ls -- "${filename}"*) 2>/dev/null
 			[[ ! -e "${TMPDIR}"/"${outname}".img ]] && mv "${output}" "${TMPDIR}"/"${outname}".img
 			"${SIMG2IMG}" "${TMPDIR}"/"${outname}".img "${OUTDIR}"/"${outname}".img 2>/dev/null
 			[[ ! -s "${OUTDIR}"/"${outname}".img && -f "${TMPDIR}"/"${outname}".img ]] && mv "${outname}".img "${OUTDIR}"/"${outname}".img
@@ -592,11 +589,10 @@ fi
 
 # Process All otherpartitions From TMPDIR Now
 for otherpartition in ${OTHERPARTITIONS}; do
-	filename=$(echo "${otherpartition}" | cut -d':' -f1)
-	outname=$(echo "${otherpartition}" | cut -d':' -f2)
-	if [[ -f "${filename}" ]]; then
-		printf "%s Detected For %s\n" "${filename}" "${outname}"
-		output=$(ls -- *"${filename}"*) 2>/dev/null
+	filename=${otherpartition%:*} && outname=${otherpartition#*:}
+	output=$(ls -- "${filename}"*) 2>/dev/null
+	if [[ -f "${output}" ]]; then
+		printf "%s Detected For %s\n" "${output}" "${outname}"
 		[[ ! -e "${TMPDIR}"/"${outname}".img ]] && mv "${output}" "${TMPDIR}"/"${outname}".img
 		"${SIMG2IMG}" "${TMPDIR}"/"${outname}".img "${OUTDIR}"/"${outname}".img 2>/dev/null
 		[[ ! -s "${OUTDIR}"/"${outname}".img && -f "${TMPDIR}"/"${outname}".img ]] && mv "${outname}".img "${OUTDIR}"/"${outname}".img
@@ -851,7 +847,8 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 		chmod a+x join_split_files.sh 2>/dev/null
 	fi
 	rm -rf "${TMPDIR}" 2>/dev/null
-	printf "Starting Git Init...\n"
+	printf "\nFinal Repository Should Look Like...\n" && ls -lAog
+	printf "\n\nStarting Git Init...\n"
 	git init		# Insure Your Github Authorization Before Running This Script
 	git config --global http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
 	git checkout -b "${branch}"
@@ -866,7 +863,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.mercy-preview+json" -d '{ "names": ["'"${platform}"'","'"${manufacturer}"'","'"${top_codename}"'","firmware","dump"]}' "https://api.github.com/repos/${GIT_ORG}/${repo}/topics" 	# Update Repository Topics
 	git remote add origin https://github.com/${GIT_ORG}/${repo}.git
 	git commit -asm "Add ${description}"
-	git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}" || (
+	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"; } || (
 		git update-ref -d HEAD
 		git reset system/ vendor/
 		git checkout -b "${branch}"
@@ -900,9 +897,8 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 		} >> "${OUTDIR}"/tg.html
 		TEXT=$(< "${OUTDIR}"/tg.html)
 		rm -rf "${OUTDIR}"/tg.html
-		curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendmessage" --data "text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" >/dev/null
+		curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendmessage" --data "text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 	fi
-	exit 0
 else
 	printf "Dumping done locally.\n"
 	exit
