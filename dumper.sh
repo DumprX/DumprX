@@ -106,8 +106,8 @@ UNSIN="${UTILSDIR}"/unsin
 PAYLOAD_EXTRACTOR="${UTILSDIR}"/ota_payload_extractor/extract_android_ota_payload.py
 DTB_EXTRACTOR="${UTILSDIR}"/extract-dtb.py
 DTC="${UTILSDIR}"/dtc
-VMLINUX2ELF="${UTILSDIR}"/vmlinux-to-elf/vmlinux_to_elf/main.py
-KALLSYMS_FINDER="${UTILSDIR}"/vmlinux-to-elf/vmlinux_to_elf/kallsyms_finder.py
+VMLINUX2ELF="${UTILSDIR}"/vmlinux-to-elf/vmlinux-to-elf
+KALLSYMS_FINDER="${UTILSDIR}"/vmlinux-to-elf/kallsyms-finder
 OZIPDECRYPT="${UTILSDIR}"/oppo_ozip_decrypt/ozipdecrypt.py
 OFP_QC_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_qc_extract.py
 OFP_MTK_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_mtk_decrypt.py
@@ -649,7 +649,7 @@ if [[ -f "${OUTDIR}"/boot.img ]]; then
 	bash "${EXTRACT_IKCONFIG}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/ikconfig >/dev/null 2>&1
 	[[ ! -s "${OUTDIR}"/bootRE/ikconfig ]] && rm -f "${OUTDIR}"/bootRE/ikconfig 2>/dev/null
 	# vmlinux-to-elf
-	if [ ! -f "${OUTDIR}"/vendor_boot.img ]; then
+	if [[ ! -f "${OUTDIR}"/vendor_boot.img ]]; then
 		python3 "${KALLSYMS_FINDER}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/boot_kallsyms.txt >/dev/null 2>&1
 		printf "boot_kallsyms.txt generated\n"
 	else
@@ -707,15 +707,24 @@ for q in *.img; do
 	fi
 done
 
-# Oppo/Realme Devices Have Some Images In A Euclid Folder In Their Vendor, Extract Those For Props
-if [[ -d "vendor/euclid" ]]; then
-	pushd vendor/euclid || exit 1
+# Oppo/Realme Devices Have Some Images In A Euclid Folder In Their Vendor and/or System, Extract Those For Props
+extract_euclid() {
 	for f in *.img; do
 		[[ -f "${f}" ]] || continue
 		7z x "${f}" -o"${f/.img/}"
 		rm -f "${f}"
 	done
 	popd || exit 1
+}
+
+if [[ -d "vendor/euclid" ]]; then
+	pushd vendor/euclid || exit 1
+	extract_euclid
+fi
+
+if [[ -d "system/system/euclid" ]]; then
+	pushd system/system/euclid || exit 1
+	extract_euclid
 fi
 
 # board-info.txt
@@ -725,16 +734,6 @@ if [ -e "${OUTDIR}"/vendor/build.prop ]; then
 	strings "${OUTDIR}"/vendor/build.prop | grep "ro.vendor.build.date.utc" | sed "s|ro.vendor.build.date.utc|require version-vendor|g" >> "${OUTDIR}"/board-info.txt
 fi
 sort -u -o "${OUTDIR}"/board-info.txt "${OUTDIR}"/board-info.txt
-
-# copy file names
-chown "$(whoami)" ./* -R
-chmod -R u+rwX ./*		#ensure final permissions
-find . -type f | cut -d'/' -f'2-' | grep -v ".git/" > "${TMPDIR}"/all_filenames.txt
-printf "Calculating Data File Sizes, Please Wait...\n"
-while read -r i; do
-	du -b "${i}" >> "${TMPDIR}"/sized_files.txt
-done < "${TMPDIR}"/all_filenames.txt
-sort -nr < "${TMPDIR}"/sized_files.txt > "${OUTDIR}"/all_files.txt
 
 # set variables
 [[ $(find "$(pwd)"/system "$(pwd)"/system/system "$(pwd)"/vendor "$(pwd)"/*product -maxdepth 1 -type f -name "build*.prop" 2>/dev/null | sort -u | gawk '{print $NF}') ]] || { printf "No system/vendor/product build*.prop found, pushing cancelled.\n" && exit 1; }
@@ -762,6 +761,7 @@ platform=$(grep -m1 -oP "(?<=^ro.board.platform=).*" -hs {system,system/system,v
 [[ -z "${platform}" ]] && platform=$(grep -m1 -oP "(?<=^ro.vendor.board.platform=).*" -hs vendor/build*.prop)
 [[ -z "${platform}" ]] && platform=$(grep -m1 -oP "(?<=^ro.system.board.platform=).*" -hs {system,system/system}/build*.prop)
 manufacturer=$(grep -m1 -oP "(?<=^ro.product.manufacturer=).*" -hs {system,system/system,vendor}/build*.prop | head -1)
+[[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.product.brand.sub=).*" -hs system/system/euclid/my_product/build*.prop)
 [[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.vendor.product.manufacturer=).*" -hs vendor/build*.prop | head -1)
 [[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.product.vendor.manufacturer=).*" -hs vendor/build*.prop | head -1)
 [[ -z "${manufacturer}" ]] && manufacturer=$(grep -m1 -oP "(?<=^ro.system.product.manufacturer=).*" -hs {system,system/system}/build*.prop)
@@ -779,6 +779,7 @@ fingerprint=$(grep -m1 -oP "(?<=^ro.build.fingerprint=).*" -hs {system,system/sy
 [[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.system.build.fingerprint=).*" -hs my_product/build.prop)
 [[ -z "${fingerprint}" ]] && fingerprint=$(grep -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" -hs my_product/build.prop)
 brand=$(grep -m1 -oP "(?<=^ro.product.brand=).*" -hs {system,system/system,vendor}/build*.prop | head -1)
+[[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.brand.sub=).*" -hs system/system/euclid/my_product/build*.prop)
 [[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.vendor.brand=).*" -hs vendor/build*.prop | head -1)
 [[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.vendor.product.brand=).*" -hs vendor/build*.prop | head -1)
 [[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.system.brand=).*" -hs {system,system/system}/build*.prop | head -1)
@@ -789,6 +790,7 @@ brand=$(grep -m1 -oP "(?<=^ro.product.brand=).*" -hs {system,system/system,vendo
 [[ -z "${brand}" ]] && brand=$(grep -m1 -oP "(?<=^ro.product.brand=).*" -hs vendor/euclid/*/build.prop | head -1)
 [[ -z "${brand}" ]] && brand=$(echo "$fingerprint" | cut -d'/' -f1)
 codename=$(grep -m1 -oP "(?<=^ro.product.device=).*" -hs {system,system/system,vendor}/build*.prop | head -1)
+[[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.vendor.product.device.oem=).*" -hs vendor/euclid/odm/build.prop | head -1)
 [[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.vendor.device=).*" -hs vendor/build*.prop | head -1)
 [[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.vendor.product.device=).*" -hs vendor/build*.prop | head -1)
 [[ -z "${codename}" ]] && codename=$(grep -m1 -oP "(?<=^ro.product.system.device=).*" -hs {system,system/system}/build*.prop | head -1)
@@ -813,6 +815,8 @@ description=$(grep -m1 -oP "(?<=^ro.build.description=).*" -hs {system,system/sy
 [[ -z "${description}" ]] && description=$(grep -m1 -oP "(?<=^ro.product.build.description=).*" -hs product/build.prop)
 [[ -z "${description}" ]] && description=$(grep -m1 -oP "(?<=^ro.product.build.description=).*" -hs product/build*.prop)
 [[ -z "${description}" ]] && description="${flavor} ${release} ${id} ${incremental} ${tags}"
+is_ab=$(grep -m1 -oP "(?<=^ro.build.ab_update=).*" -hs {system,system/system,vendor}/build*.prop)
+[[ -z "${is_ab}" ]] && is_ab="false"
 branch=$(echo "${description}" | tr ' ' '-')
 repo=$(echo "${brand}"_"${codename}"_dump | tr '[:upper:]' '[:lower:]')
 platform=$(echo "${platform}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
@@ -820,9 +824,19 @@ top_codename=$(echo "${codename}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print
 manufacturer=$(echo "${manufacturer}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
 
 # Repo README File
-printf "## %s\n- Manufacturer: %s\n- Platform: %s\n- Codename: %s\n- Brand: %s\n- Flavor: %s\n- Release Version: %s\n- Id: %s\n- Incremental: %s\n- Tags: %s\n- CPU Abilist: %s\n- Locale: %s\n- Screen Density: %s\n- Fingerprint: %s\n- Branch: %s\n- Repo: %s\n" "${description}" "${manufacturer}" "${platform}" "${codename}" "${brand}" "${flavor}" "${release}" "${id}" "${incremental}" "${tags}" "${abilist}" "${locale}" "${density}" "${fingerprint}" "${branch}" "${repo}" > "${OUTDIR}"/README.md
+printf "## %s\n- Manufacturer: %s\n- Platform: %s\n- Codename: %s\n- Brand: %s\n- Flavor: %s\n- Release Version: %s\n- Id: %s\n- Incremental: %s\n- Tags: %s\n- CPU Abilist: %s\n- A/B Device: %s\n- Locale: %s\n- Screen Density: %s\n- Fingerprint: %s\n- Branch: %s\n- Repo: %s\n" "${description}" "${manufacturer}" "${platform}" "${codename}" "${brand}" "${flavor}" "${release}" "${id}" "${incremental}" "${tags}" "${abilist}" "${is_ab}" "${locale}" "${density}" "${fingerprint}" "${branch}" "${repo}" > "${OUTDIR}"/README.md
 printf "\n\n>Dumped by [Phoenix Firmware Dumper](https://github.com/DroidDumps/phoenix_firmware_dumper)\n" >> "${OUTDIR}"/README.md
 cat "${OUTDIR}"/README.md
+
+# copy file names
+chown "$(whoami)" ./* -R
+chmod -R u+rwX ./*		#ensure final permissions
+find . -type f | cut -d'/' -f'2-' | grep -v ".git/" > "${TMPDIR}"/all_filenames.txt
+printf "Calculating Data File Sizes, Please Wait...\n"
+while read -r i; do
+	du -b "${i}" >> "${TMPDIR}"/sized_files.txt
+done < "${TMPDIR}"/all_filenames.txt
+sort -nr < "${TMPDIR}"/sized_files.txt > "${OUTDIR}"/all_files.txt
 
 rm -rf "${TMPDIR}" 2>/dev/null
 
