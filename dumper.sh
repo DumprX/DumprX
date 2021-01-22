@@ -93,6 +93,10 @@ if [[ ! -d "${UTILSDIR}"/vmlinux-to-elf ]]; then
 else
 	git -C "${UTILSDIR}"/vmlinux-to-elf pull -q
 fi
+# Use update_metadata_pb2.py from Android's update_engine Git Repository
+if [[ ! -f "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py ]]; then
+	curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
+fi
 
 ## See README.md File For Program Credits
 # Set Utility Program Alias
