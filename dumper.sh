@@ -159,7 +159,10 @@ else
 		elif echo "${URL}" | grep -q "androidfilehost.com"; then
 			( python3 "${AFHDL}" -l "${URL}" ) || exit 1
 		else
-			aria2c -x16 -s8 --console-log-level=warn --summary-interval=0 "${URL}" || { wget -q --show-progress --progress=bar:force "${URL}" || exit 1; }
+			if echo "${URL}" | grep -q "1drv.ms"; then URL=${URL/ms/ws}; fi
+			aria2c -x16 -s8 --console-log-level=warn --summary-interval=0 --check-certificate=false "${URL}" || {
+				wget -q --show-progress --progress=bar:force --no-check-certificate "${URL}" || exit 1
+			}
 		fi
 		unset URL
 		for f in *; do detox -r "${f}" 2>/dev/null; done		# Detox Filename
