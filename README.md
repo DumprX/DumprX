@@ -46,7 +46,7 @@ Help Context:
 ```text
   >> Supported Websites:
         1. Directly Accessible Download Link From Any Website
-        2. Filehosters like - mega.nz | mediafire | google drive | androidfilehost
+        2. Filehosters like - mega.nz | mediafire | gdrive | onedrive | androidfilehost
          >> Must Wrap Website Link Inside Single-quotes ('')
   >> Supported File Formats For Direct Operation:
          *.zip | *.rar | *.7z | *.tar | *.tar.gz | *.tgz | *.tar.md5

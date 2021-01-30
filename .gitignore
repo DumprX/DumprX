@@ -9,3 +9,4 @@ out/
 __pycache__
 utils/oppo_*
 utils/vmlinux*
+utils/ota_payload_extractor/update_metadata_pb2.py
