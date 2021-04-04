@@ -79,10 +79,8 @@ mkdir -p "${OUTDIR}" "${TMPDIR}" 2>/dev/null
 # Clone Oppo Decryption Tools From Upstream
 if [[ ! -d "${UTILSDIR}"/oppo_ozip_decrypt ]]; then
 	git clone -q https://github.com/bkerler/oppo_ozip_decrypt.git "${UTILSDIR}"/oppo_ozip_decrypt
-	git -C "${UTILSDIR}"/oppo_ozip_decrypt reset -q --hard d02128dade8fffaf16e00f9f7d01f7be39558f69
 else
 	git -C "${UTILSDIR}"/oppo_ozip_decrypt pull -q
-	git -C "${UTILSDIR}"/oppo_ozip_decrypt reset -q --hard d02128dade8fffaf16e00f9f7d01f7be39558f69
 fi
 if [[ ! -d "${UTILSDIR}"/oppo_decrypt ]]; then
 	git clone -q https://github.com/bkerler/oppo_decrypt.git "${UTILSDIR}"/oppo_decrypt
