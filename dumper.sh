@@ -76,27 +76,22 @@ TMPDIR="${OUTDIR}"/tmp				# Temporary Working Directory
 rm -rf "${TMPDIR}" 2>/dev/null
 mkdir -p "${OUTDIR}" "${TMPDIR}" 2>/dev/null
 
-# Clone Oppo Decryption Tools From Upstream
-if [[ ! -d "${UTILSDIR}"/oppo_ozip_decrypt ]]; then
-	git clone -q https://github.com/bkerler/oppo_ozip_decrypt.git "${UTILSDIR}"/oppo_ozip_decrypt
-else
-	git -C "${UTILSDIR}"/oppo_ozip_decrypt pull -q
-fi
-if [[ ! -d "${UTILSDIR}"/oppo_decrypt ]]; then
-	git clone -q https://github.com/bkerler/oppo_decrypt.git "${UTILSDIR}"/oppo_decrypt
-else
-	git -C "${UTILSDIR}"/oppo_decrypt pull -q
-fi
-# Clone vmlinux-to-elf From Upstream
-if [[ ! -d "${UTILSDIR}"/vmlinux-to-elf ]]; then
-	git clone -q https://github.com/marin-m/vmlinux-to-elf.git "${UTILSDIR}"/vmlinux-to-elf
-else
-	git -C "${UTILSDIR}"/vmlinux-to-elf pull -q
-fi
-# Use update_metadata_pb2.py from Android's update_engine Git Repository
-if [[ ! -f "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py ]]; then
-	curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
-fi
+EXTERNAL_TOOLS=(
+	bkerler/oppo_ozip_decrypt
+	bkerler/oppo_decrypt
+	marin-m/vmlinux-to-elf
+)
+
+for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
+	if ! [[ -d "${UTILSDIR}"/"${tool_slug#*/}" ]]; then
+		git clone -q https://github.com/"${tool_slug}".git "${UTILSDIR}"/"${tool_slug#*/}"
+	else
+		git -C "${UTILSDIR}"/"${tool_slug#*/}" pull
+	fi
+done
+
+# Always Use update_metadata_pb2.py from Android's update_engine Git Repository
+curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
 
 ## See README.md File For Program Credits
 # Set Utility Program Alias
@@ -220,17 +215,12 @@ fi
 cd "${PROJECT_DIR}"/ || exit
 # Function for extracting superimage
 function superimage_extract() {
-	printf "Creating super.img.raw ...\n"
-	"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
-	if [[ ! -s super.img.raw && -f super.img ]]; then
-		mv super.img super.img.raw
-	fi
 	for partition in ${PARTITIONS}; do
 		printf "Extracting partitions from super image\n"
 		( "${LPUNPACK}" --partition="${partition}"_a super.img.raw || "${LPUNPACK}" --partition="${partition}" super.img.raw ) 2>/dev/null
 		[[ -f "${partition}"_a.img ]] && mv "${partition}"_a.img "${partition}".img
 	done
-	rm -rf super.img.raw
+	rm -rf super.img.raw super.img 2>/dev/null
 }
 
 printf "Extracting firmware on: %s\n" "${OUTDIR}"
@@ -383,7 +373,8 @@ if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" || [[ $(find "${TMPDIR}" -t
 			find "${TMPDIR}" -type f \( -name "${partition}.new.dat*" -o -name "${partition}.transfer.list" -o -name "${partition}.img" \) -exec mv {} . \;
 		fi
 		# Join Split Compressed dat Files, If Any
-		for e in "br xz"; do
+		compr=(br xz)
+		for e in "${compr[@]}"; do
 			if [[ -f "${partition}".new.dat."${e}".1 ]]; then
 				printf "Joining %s-compressed Split dat Files...\n" "${e}"
 				cat "${partition}".new.dat."${e}".{0..999} 2>/dev/null >> "${partition}".new.dat."${e}"
@@ -523,19 +514,31 @@ elif 7z l -ba "${FILEPATH}" | grep -q "system-sign.img" || [[ $(find "${TMPDIR}"
 			dd if="${TMPDIR}"/"${file}" of="${TMPDIR}"/x.img bs=$((0x4040)) skip=1 >/dev/null 2>&1
 		fi
 	done
-elif 7z l -ba "${FILEPATH}" | grep -q "super.img" || [[ $(find "${TMPDIR}" -type f -name "super.img" | wc -l) -ge 1 ]]; then
+elif 7z l -ba "${FILEPATH}" | grep -q -oP "(super.img|super.[0-9].+.img)" || [[ $(find "${TMPDIR}" -type f -name "super.*img" | wc -l) -ge 1 ]]; then
 	printf "Super Image Detected\n"
 	#mv -f "${FILEPATH}" "${TMPDIR}"/
 	if [[ -f "${FILEPATH}" ]]; then
-		foundsupers=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "super.img")
+		foundsupers=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "super.*img")
 		7z e -y -- "${FILEPATH}" "${foundsupers}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
+	fi
+	splitsupers=$(ls | grep -oP "super.[0-9].+.img")
+	if [[ ! -z "${splitsupers}" ]]; then
+		printf "Creating super.img.raw ...\n"
+		"${SIMG2IMG}" "${splitsupers}" super.img.raw 2>/dev/null
+		rm -rf -- "${splitsupers}"
 	fi
 	superchunk=$(find . -maxdepth 1 -type f -name "*super*chunk*" | cut -d'/' -f'2-' | sort)
 	if echo "${superchunk}" | grep -q "sparsechunk"; then
+		printf "Creating super.img.raw ...\n"
 		"${SIMG2IMG}" "${superchunk}" super.img.raw 2>/dev/null
 		rm -rf -- *super*chunk*
 	fi
-	( [[ -f super.img ]] && superimage_extract ) || exit 1
+	if [[ -f super.img ]]; then
+		printf "Creating super.img.raw ...\n"
+		"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
+		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
+	fi
+	superimage_extract || exit 1
 elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ || [[ $(find "${TMPDIR}" -type f -name "*AP_*tar.md5" | wc -l) -ge 1 ]]; then
 	printf "AP tarmd5 Detected\n"
 	#mv -f "${FILEPATH}" "${TMPDIR}"/
@@ -551,7 +554,12 @@ elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ ||
 		rm -fv "${i}" || exit 1
 		printf "Extracted %s\n" "${i}"
 	done
-	( [[ -f super.img ]] && superimage_extract ) || exit 1
+	if [[ -f super.img ]]; then
+		printf "Creating super.img.raw ...\n"
+		"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
+		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
+	fi
+	superimage_extract || exit 1
 	if [[ ! -f system.img ]]; then
 		printf "Extract failed\n"
 		rm -rf "${TMPDIR}" && exit 1
@@ -589,7 +597,12 @@ elif 7z l -ba "${FILEPATH}" | grep -q "UPDATE.APP" || [[ $(find "${TMPDIR}" -typ
 		python3 "${SPLITUAPP}" -f "UPDATE.APP" -l "${partition/.img/}" || printf "%s not found in UPDATE.APP\n" "${partition}"
 	done )
 	find output/ -type f -name "*.img" -exec mv {} . \;	# Partitions Are Extracted In "output" Folder
-	[[ -f super.img ]] && superimage_extract
+	if [[ -f super.img ]]; then
+		printf "Creating super.img.raw ...\n"
+		"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
+		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
+	fi
+	superimage_extract || exit 1
 fi
 
 # $(pwd) == "${TMPDIR}"
