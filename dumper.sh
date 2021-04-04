@@ -290,8 +290,10 @@ if [[ "${EXTENSION}" == "ofp" ]]; then
 	# Either Move Downloaded/Re-Loaded File Or Copy Local File
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
 	printf "Decrypting ofp & extracing...\n"
-	if ! python3 "$OFP_QC_DECRYPT" "${TMPDIR}"/"${FILE}" out/; then
-		if ! python3 "$OFP_MTK_DECRYPT" "${TMPDIR}"/"${FILE}" out/; then
+	python3 "$OFP_QC_DECRYPT" "${TMPDIR}"/"${FILE}" out
+	if [[ ! -f "${TMPDIR}"/out/boot.img || ! -f "${TMPDIR}"/out/userdata.img ]]; then
+		python3 "$OFP_MTK_DECRYPT" "${TMPDIR}"/"${FILE}" out
+		if [[ ! -f "${TMPDIR}"/out/boot.img || ! -f "${TMPDIR}"/out/userdata.img ]]; then
 			printf "ofp decryption error.\n" && exit 1
 		fi
 	fi
