@@ -234,10 +234,10 @@ if [[ $(head -c12 "${FILEPATH}" 2>/dev/null | tr -d '\0') == "OPPOENCRYPT!" ]] |
 	printf "Decrypting ozip And Making A Zip...\n"
 	python3 "${OZIPDECRYPT}" "${TMPDIR}"/"${FILE}"
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
-	if [[ -d "${TMPDIR}"/out ]]; then
-		mv "${TMPDIR}"/out/* "${INPUTDIR}"/
-	elif [[ -f "${FILE%.*}".zip ]]; then
+	if [[ -f "${FILE%.*}".zip ]]; then
 		mv "${FILE%.*}".zip "${INPUTDIR}"/
+	elif [[ -d "${TMPDIR}"/out ]]; then
+		mv "${TMPDIR}"/out/* "${INPUTDIR}"/
 	fi
 	rm -rf "${TMPDIR:?}"/*
 	printf "Re-Loading The Decrypted Content.\n"
