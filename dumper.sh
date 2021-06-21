@@ -661,7 +661,7 @@ if [[ -f "${OUTDIR}"/boot.img ]]; then
 	printf "Boot extracted\n"
 	# extract-ikconfig
 	mkdir -p "${OUTDIR}"/bootRE
-	bash "${EXTRACT_IKCONFIG}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/ikconfig >/dev/null 2>&1
+	bash "${EXTRACT_IKCONFIG}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/ikconfig 2> /dev/null
 	[[ ! -s "${OUTDIR}"/bootRE/ikconfig ]] && rm -f "${OUTDIR}"/bootRE/ikconfig 2>/dev/null
 	# vmlinux-to-elf
 	if [[ ! -f "${OUTDIR}"/vendor_boot.img ]]; then
