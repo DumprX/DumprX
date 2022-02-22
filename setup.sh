@@ -30,5 +30,5 @@ if [ $? -eq 0 ]; then
 	wget -q -O get-pip.py https://bootstrap.pypa.io/get-pip.py
 	python3 get-pip.py --upgrade --disable-pip-version-check --no-cache-dir
 	rm -f get-pip.py
-	pip3 install future requests humanize clint backports.lzma lz4 zstandard protobuf pycryptodome docopt
+	pip3 install future requests humanize clint backports.lzma lz4 zstandard protobuf pycryptodome docopt twrpdtgen
 fi

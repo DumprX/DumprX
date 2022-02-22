@@ -856,6 +856,21 @@ printf "## %s\n- Manufacturer: %s\n- Platform: %s\n- Codename: %s\n- Brand: %s\n
 printf "\n\n>Dumped by [Phoenix Firmware Dumper](https://github.com/DroidDumps/phoenix_firmware_dumper)\n" >> "${OUTDIR}"/README.md
 cat "${OUTDIR}"/README.md
 
+# Generate TWRP Trees
+twrpdtout="twrp-device-tree"
+if [[ "$is_ab" = true ]]; then
+    twrpimg=boot.img
+else
+    twrpimg=recovery.img
+fi
+if [[ -f ${twrpimg} ]]; then
+	mkdir -p $twrpdtout
+    python3 -m twrpdtgen $twrpimg -o $twrpdtout
+    if [[ "$?" = 0 ]]; then
+        [[ ! -e "${PROJECT_DIR}"/working/"${UNZIP_DIR}"/twrp-device-tree/README.md ]] && curl https://raw.githubusercontent.com/wiki/SebaUbuntu/TWRP-device-tree-generator/4.-Build-TWRP-from-source.md > ${twrpdtout}/README.md
+    fi
+fi
+
 # copy file names
 chown "$(whoami)" ./* -R
 chmod -R u+rwX ./*		#ensure final permissions
