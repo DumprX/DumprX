@@ -847,7 +847,15 @@ otaver=$(grep -m1 -oP "(?<=^ro.build.version.ota=).*" -hs {vendor/euclid/product
 [[ ! -z "${otaver}" && -z "${fingerprint}" ]] && branch=$(echo "${otaver}" | tr ' ' '-')
 [[ -z "${otaver}" ]] && otaver=$(grep -m1 -oP "(?<=^ro.build.fota.version=).*" -hs {system,system/system}/build*.prop | head -1)
 [[ -z "${branch}" ]] && branch=$(echo "${description}" | tr ' ' '-')
-repo=$(echo "${brand}"_"${codename}"_dump | tr '[:upper:]' '[:lower:]')
+
+if [[ "$USE_GITLAB" = true ]]; then
+	rm -rf .github_token
+	repo=$(echo "${brand}"/"${codename}" | tr '[:upper:]' '[:lower:]')
+else
+	rm -rf .gitlab_token
+	repo=$(echo "${brand}"_"${codename}"_dump | tr '[:upper:]' '[:lower:]')
+fi
+
 platform=$(echo "${platform}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
 top_codename=$(echo "${codename}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
 manufacturer=$(echo "${manufacturer}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
@@ -884,8 +892,8 @@ rm -rf "${TMPDIR}" 2>/dev/null
 
 if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	GITHUB_TOKEN=$(< "${PROJECT_DIR}"/.github_token)	# Write Your Github Token In a Text File
-	[[ -z "$(git config --get user.email)" ]] && git config user.email "DroidDumps@github.com"
-	[[ -z "$(git config --get user.name)" ]] && git config user.name "DroidDumps"
+	[[ -z "$(git config --get user.email)" ]] && git config user.email "guptasushrut@gmail.com"
+	[[ -z "$(git config --get user.name)" ]] && git config user.name "Sushrut1101"
 	if [[ -s "${PROJECT_DIR}"/.github_orgname ]]; then
 		GIT_ORG=$(< "${PROJECT_DIR}"/.github_orgname)	# Set Your Github Organization Name
 	else
@@ -962,6 +970,93 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 		rm -rf "${OUTDIR}"/tg.html
 		curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendmessage" --data "text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
 	fi
+
+elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
+	[[ -z "$(git config --get user.email)" ]] && git config user.email "guptasushrut@gmail.com"
+	[[ -z "$(git config --get user.name)" ]] && git config user.name "Sushrut1101"
+	if [[ -s "${PROJECT_DIR}"/.gitlab_group ]]; then
+		GIT_ORG=$(< "${PROJECT_DIR}"/.gitlab_group)	# Set Your Gitlab Group Name
+	else
+		GIT_USER="$(git config --get user.name)"
+		GIT_ORG="${GIT_USER}"				# Otherwise, Your Username will be used
+	fi
+
+	# Gitlab Vars
+	GITLAB_TOKEN=$(< "${PROJECT_DIR}"/.gitlab_token)	# Write Your Gitlab Token In a Text File
+	GITLAB_INSTANCE="gitlab.com"
+    LAB_CORE_HOST="https://${GITLAB_INSTANCE}"
+	LAB_CORE_TOKEN="$GITLAB_TOKEN"
+
+	# Check if already dumped or not
+	curl -sf "https://"$GITLAB_INSTANCE"/${GIT_ORG}/${REPO}/-/raw/${branch}/all_files.txt" | grep "all_files.txt" && { printf "Firmware already dumped!\nGo to https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}/-/tree/${branch}\n" && exit 1; }  # Add grep to fix gitlab login error
+	# Remove The Journal File Inside System/Vendor
+	find . -mindepth 2 -type d -name "\[SYS\]" -exec rm -rf {} \; 2>/dev/null
+	printf "\nFinal Repository Should Look Like...\n" && ls -lAog
+	printf "\n\nStarting Git Init...\n"
+
+    git init		# Insure Your GitLab Authorization Before Running This Script
+	git config --global http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
+	git checkout -b "${branch}"
+	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
+	[[ ! -s .gitignore ]] && rm .gitignore
+	git add --all
+
+	# Create Subgroup
+	GRP_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${LAB_CORE_HOST}/api/v4/groups/${GIT_ORG}" | jq -r '.id')
+	curl --request POST \
+	--header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+	--header "Content-Type: application/json" \
+	--data '{"name": "'"${brand}"'", "path": "'"${brand}"'", "visibility": "public", "parent_id": "'"${GRP_ID}"'"}'
+	"${LAB_CORE_HOST}/api/v4/groups/" | tee /tmp/grp.txt
+	echo ""
+
+	# Create Repository
+	SUBGRP_ID=$(cat /tmp/grp.txt | jq .id)
+	curl -s \
+	--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+	-X POST \
+	"${LAB_CORE_HOST}/api/v4/projects?name=${codename}&namespace_id=${SUBGRP_ID}&visibility=public"
+
+	git remote add origin https://"$GITLAB_INSTANCE"/${GIT_ORG}/${brand}/${codename}.git
+	git commit -asm "Add ${description}"
+	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"; } || (
+		git update-ref -d HEAD
+		git reset system/ vendor/
+		git checkout -b "${branch}"
+		git commit -asm "Add extras for ${description}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
+		git add vendor/
+		git commit -asm "Add vendor for ${description}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
+		git add system/system/app/ system/system/priv-app/ || git add system/app/ system/priv-app/
+		git commit -asm "Add apps for ${description}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
+		git add system/
+		git commit -asm "Add system for ${description}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
+	)
+
+	# Telegram channel post
+	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
+		TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token)
+		if [[ -s "${PROJECT_DIR}"/.tg_chat ]]; then		# TG Channel ID
+			CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
+		else
+			CHAT_ID="@phoenix_droid_dumps"
+		fi
+		printf "Sending telegram notification...\n"
+		printf "<b>Brand: %s</b>" "${brand}" >| "${OUTDIR}"/tg.html
+		{
+			printf "\n<b>Device: %s</b>" "${codename}"
+			printf "\n<b>Version:</b> %s" "${release}"
+			printf "\n<b>Fingerprint:</b> %s" "${fingerprint}"
+			printf "\n<a href=\"https://github.com/%s/%s/tree/%s/\">Github Tree</a>" "${GIT_ORG}" "${repo}" "${branch}"
+		} >> "${OUTDIR}"/tg.html
+		TEXT=$(< "${OUTDIR}"/tg.html)
+		rm -rf "${OUTDIR}"/tg.html
+		curl -s "https://api.telegram.org/bot${TG_TOKEN}/sendmessage" --data "text=${TEXT}&chat_id=${CHAT_ID}&parse_mode=HTML&disable_web_page_preview=True" || printf "Telegram Notification Sending Error.\n"
+	fi
+
 else
 	printf "Dumping done locally.\n"
 	exit
