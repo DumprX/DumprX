@@ -23,7 +23,7 @@ elif grep -q ^ID_LIKE=debian$ /etc/os-release; then
 	apt-get update -qy
 	apt-get install -qy --show-progress coreutils build-essential gawk git-core sharutils uudeview mpack p7zip-full p7zip-rar \
 		gzip cpio bzip2 liblz4-dev liblz4-tool liblzma-dev xz-utils lzma lzop \
-		libxml2 libfdt-dev python3-dev aria2 detox brotli zstd libzstd-dev openssl xxd
+		libxml2 libfdt-dev python3-dev aria2 detox brotli zstd libzstd-dev openssl xxd liblz4-devel
 fi
 
 if [ $? -eq 0 ]; then
