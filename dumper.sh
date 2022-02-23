@@ -1056,6 +1056,12 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
 	)
 
+	# Try Pushing via SSH if HTTPS didn't work (it's an issue with gitlab for large repos)
+	# NOTE: Your SSH Keys Needs to be Added to your Gitlab Instance
+	git remote remove origin
+	git remote add origin git@${GITLAB_INSTANCE}:${GIT_ORG}/${repo}.git
+	git push origin ${branch}
+
 	# Telegram channel post
 	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
 		TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token)
