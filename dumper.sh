@@ -925,7 +925,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	printf "\n\nStarting Git Init...\n"
 	git init		# Insure Your Github Authorization Before Running This Script
 	git config --global http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
-	git checkout -b "${branch}"
+	git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
 	[[ ! -s .gitignore ]] && rm .gitignore
 	git add --all
@@ -940,7 +940,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"; } || (
 		git update-ref -d HEAD
 		git reset system/ vendor/
-		git checkout -b "${branch}"
+		git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 		git commit -asm "Add extras for ${description}"
 		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
 		git add vendor/
@@ -998,7 +998,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 
 	git init		# Insure Your GitLab Authorization Before Running This Script
 	git config --global http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
-	git checkout -b "${branch}"
+	git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
 	[[ ! -s .gitignore ]] && rm .gitignore
 	git add --all
@@ -1042,7 +1042,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"; } || (
 		git update-ref -d HEAD
 		git reset system/ vendor/
-		git checkout -b "${branch}"
+		git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 		git commit -asm "Add extras for ${description}"
 		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
 		git add vendor/
