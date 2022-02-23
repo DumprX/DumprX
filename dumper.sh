@@ -1007,11 +1007,11 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	--header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
 	--header "Content-Type: application/json" \
 	--data '{"name": "'"${brand}"'", "path": "'"${brand}"'", "visibility": "public", "parent_id": "'"${GRP_ID}"'"}' \
-	"${LAB_CORE_HOST}/api/v4/groups/" | tee /tmp/grp.txt
+	"${LAB_CORE_HOST}/api/v4/groups/"
 	echo ""
 
 	# Create Repository
-	SUBGRP_ID=$(cat /tmp/grp.txt | jq .id)
+	SUBGRP_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${LAB_CORE_HOST}/api/v4/groups/${GIT_ORG}/${brand}" | jq -r '.id')
 	curl -s \
 	--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
 	-X POST \
