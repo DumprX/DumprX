@@ -848,7 +848,7 @@ otaver=$(grep -m1 -oP "(?<=^ro.build.version.ota=).*" -hs {vendor/euclid/product
 [[ -z "${otaver}" ]] && otaver=$(grep -m1 -oP "(?<=^ro.build.fota.version=).*" -hs {system,system/system}/build*.prop | head -1)
 [[ -z "${branch}" ]] && branch=$(echo "${description}" | tr ' ' '-')
 
-if [[ "$USE_GITLAB" = true ]]; then
+if [[ "$PUSH_TO_GITLAB" = true ]]; then
 	rm -rf .github_token
 	repo=$(echo "${brand}"/"${codename}" | tr '[:upper:]' '[:lower:]')
 else
@@ -1006,7 +1006,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	curl --request POST \
 	--header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
 	--header "Content-Type: application/json" \
-	--data '{"name": "'"${brand}"'", "path": "'"${brand}"'", "visibility": "public", "parent_id": "'"${GRP_ID}"'"}'
+	--data '{"name": "'"${brand}"'", "path": "'"${brand}"'", "visibility": "public", "parent_id": "'"${GRP_ID}"'"}' \
 	"${LAB_CORE_HOST}/api/v4/groups/" | tee /tmp/grp.txt
 	echo ""
 
