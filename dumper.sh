@@ -878,6 +878,9 @@ if [[ -f ${twrpimg} ]]; then
     fi
 fi
 
+# Remove all .git from twrpdtout
+rm -rf $(find $twrpdtout -type d -name ".git")
+
 # copy file names
 chown "$(whoami)" ./* -R
 chmod -R u+rwX ./*		#ensure final permissions
