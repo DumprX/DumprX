@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Clear Screen
 tput reset || clear
@@ -984,8 +984,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# Gitlab Vars
 	GITLAB_TOKEN=$(< "${PROJECT_DIR}"/.gitlab_token)	# Write Your Gitlab Token In a Text File
 	GITLAB_INSTANCE="gitlab.com"
-    LAB_CORE_HOST="https://${GITLAB_INSTANCE}"
-	LAB_CORE_TOKEN="$GITLAB_TOKEN"
+	GITLAB_HOST="https://${GITLAB_INSTANCE}"
 
 	# Check if already dumped or not
 	curl -sf "https://"$GITLAB_INSTANCE"/${GIT_ORG}/${REPO}/-/raw/${branch}/all_files.txt" | grep "all_files.txt" && { printf "Firmware already dumped!\nGo to https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}/-/tree/${branch}\n" && exit 1; }  # Add grep to fix gitlab login error
@@ -994,7 +993,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	printf "\nFinal Repository Should Look Like...\n" && ls -lAog
 	printf "\n\nStarting Git Init...\n"
 
-    git init		# Insure Your GitLab Authorization Before Running This Script
+	git init		# Insure Your GitLab Authorization Before Running This Script
 	git config --global http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
 	git checkout -b "${branch}"
 	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
@@ -1002,20 +1001,38 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	git add --all
 
 	# Create Subgroup
-	GRP_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${LAB_CORE_HOST}/api/v4/groups/${GIT_ORG}" | jq -r '.id')
+	GRP_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${GITLAB_HOST}/api/v4/groups/${GIT_ORG}" | jq -r '.id')
 	curl --request POST \
 	--header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
 	--header "Content-Type: application/json" \
 	--data '{"name": "'"${brand}"'", "path": "'"${brand}"'", "visibility": "public", "parent_id": "'"${GRP_ID}"'"}' \
-	"${LAB_CORE_HOST}/api/v4/groups/"
+	"${GITLAB_HOST}/api/v4/groups/"
 	echo ""
 
+	# Subgroup ID
+	get_gitlab_subgrp_id(){
+		local SUBGRP="$1"
+		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/${GIT_ORG}/subgroups | jq -r .[] | jq -r .name,.id > /tmp/subgrp.txt
+		local N_TMP=$(wc -l /tmp/subgrp.txt | cut -d\  -f1)
+		local i
+		for ((i=1; i<=$N_TMP; i++))
+		do
+			local TMP_I=$(cat /tmp/subgrp.txt | head -"$i" | tail -1)
+			[[ "$TMP_I" == "$SUBGRP" ]] && cat /tmp/subgrp.txt | head -$(("$i"+1)) | tail -1 > "$2"
+		done
+		}
+
+	get_gitlab_subgrp_id ${brand} /tmp/subgrp_id.txt
+	SUBGRP_ID=$(< /tmp/subgrp_id.txt)
+
 	# Create Repository
-	SUBGRP_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${LAB_CORE_HOST}/api/v4/groups/${GIT_ORG}/${brand}" | jq -r '.id')
 	curl -s \
 	--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
 	-X POST \
-	"${LAB_CORE_HOST}/api/v4/projects?name=${codename}&namespace_id=${SUBGRP_ID}&visibility=public"
+	"${GITLAB_HOST}/api/v4/projects?name=${codename}&namespace_id=${SUBGRP_ID}&visibility=public"
+
+	# Delete the Temporary Files
+	rm -rf /tmp/subgrp_id.txt /tmp/subgrp.txt
 
 	git remote add origin https://"$GITLAB_INSTANCE"/${GIT_ORG}/${brand}/${codename}.git
 	git commit -asm "Add ${description}"
