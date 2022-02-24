@@ -1015,7 +1015,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# Subgroup ID
 	get_gitlab_subgrp_id(){
 		local SUBGRP="$1"
-		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/${GIT_ORG}/subgroups | jq -r .[] | jq -r .name,.id > /tmp/subgrp.txt
+		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/${GIT_ORG}/subgroups | jq -r .[] | jq -r .path,.id > /tmp/subgrp.txt
 		local N_TMP=$(wc -l /tmp/subgrp.txt | cut -d\  -f1)
 		local i
 		for ((i=1; i<=$N_TMP; i++))
