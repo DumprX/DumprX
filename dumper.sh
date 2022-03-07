@@ -14,13 +14,17 @@ printf "\033[8;30;90t" || true
 function __bannerTop() {
 	cat <<EOBT
 
-    ╔══════════════════════════════════════════════════════════════════════════════╗
-    ║    ╔═╗╦ ╦╔═╗╔═╗╔╗╔╦═╗ ╦  ╔═╗┬┬─┐┌┬┐┬ ┬┌─┐┬─┐┌─┐  ╔╦╗┬ ┬┌┬┐┌─┐┌─┐┬─┐          ║
-    ║    ╠═╝╠═╣║ ║║╣ ║║║║╔╩╦╝  ╠╣ │├┬┘││││││├─┤├┬┘├┤    ║║│ ││││├─┘├┤ ├┬┘          ║
-    ║    ╩  ╩ ╩╚═╝╚═╝╝╚╝╩╩ ╚═  ╚  ┴┴└─┴ ┴└┴┘┴ ┴┴└─└─┘  ═╩╝└─┘┴ ┴┴  └─┘┴└─  v1.1.3  ║
-    ║ ---------------------------------------------------------------------------- ║
-    ║  Based Upon Dumpyara from AndroidDumps, Infused w/ their Firmware_extractor  ║
-    ╚══════════════════════════════════════════════════════════════════════════════╝
+	╔═══════════════════════════════════════════════════════════════════════════════╗
+	║	########  ##     ## ##     ## ########  ########  ##     ## 		║
+	║	##     ## ##     ## ###   ### ##     ## ##     ##  ##   ##		║
+	║	##     ## ##     ## #### #### ##     ## ##     ##   ## ##  		║
+	║	##     ## ##     ## ## ### ## ########  ########     ###    		║
+	║	##     ## ##     ## ##     ## ##        ##   ##     ## ##   		║
+	║	##     ## ##     ## ##     ## ##        ##    ##   ##   ##  		║
+	║	########   #######  ##     ## ##        ##     ## ##     ##   		║
+	║-------------------------------------------------------------------------------║
+	║	Based Upon Phoenix Firmware Dumper, With more Features!			║
+	╚═══════════════════════════════════════════════════════════════════════════════╝
 EOBT
 }
 
@@ -959,7 +963,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 		if [[ -s "${PROJECT_DIR}"/.tg_chat ]]; then		# TG Channel ID
 			CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
 		else
-			CHAT_ID="@phoenix_droid_dumps"
+			CHAT_ID="@DumprXDumps"
 		fi
 		printf "Sending telegram notification...\n"
 		printf "<b>Brand: %s</b>" "${brand}" >| "${OUTDIR}"/tg.html
@@ -1068,7 +1072,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		if [[ -s "${PROJECT_DIR}"/.tg_chat ]]; then		# TG Channel ID
 			CHAT_ID=$(< "${PROJECT_DIR}"/.tg_chat)
 		else
-			CHAT_ID="@phoenix_droid_dumps"
+			CHAT_ID="@DumprXDumps"
 		fi
 		printf "Sending telegram notification...\n"
 		printf "<b>Brand: %s</b>" "${brand}" >| "${OUTDIR}"/tg.html

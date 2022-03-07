@@ -1,8 +1,8 @@
 <div align="center">
 
-  <h1>Phoenix Firmware Dumper v1.1.3</h1>
+  <h1>DumprX</h1>
 
-  <h4>Based Upon Dumpyara from AndroidDumps, Infused w/ their Firmware_extractor</h4>
+  <h4>Based Upon Phoenix Firmware Dumper from DroidDumps, with some Changes and Improvements</h4>
 
 </div>
 
@@ -20,6 +20,7 @@ You might've used firmware extractor via dumpyara from https://github.com/Androi
 - [x] Binary tools are updated to latest available source
 - [x] LG KDZ utilities are updated to support latest firmwares
 - [x] Installation requirements are narrowed down to minimal for playing with this toolkit
+- [x] Recovery Dump is made too
 
 ## Recommendations before Playing with Firmware Dumper
 
@@ -65,7 +66,7 @@ Help Context:
 
 ## Main Scripture Credit
 
-As mentioned above, this toolkit is entirely focused on improving the Original Firmware Dumper available [Here](https://github.com/AndroidDumps/)
+As mentioned above, this toolkit is entirely focused on improving the Original Firmware Dumper available:  [Dumpyara](https://github.com/AndroidDumps/) [Phoenix Firmware Dumper](https://github.com/DroidDumps)
 
 Credit for those tools goes to everyone whosoever worked hard to put all those programs in one place to make an awesome project.
 
@@ -116,4 +117,4 @@ Credit for those tools goes to everyone whosoever worked hard to put all those p
   - From within linux's source code by @torvalds
 - unpackboot.sh (bootimg and ramdisk extractor, modified shell script)
   - Originally by @xiaolu and @carlitros900, stripped to unpack functionallity, by me @rokibhasansagar
-
+- twrpdtgen by @SebaUbuntu
