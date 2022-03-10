@@ -1051,23 +1051,23 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# Delete the Temporary Files
 	rm -rf /tmp/subgrp_id.txt /tmp/subgrp.txt
 
-	git remote add origin https://"$GITLAB_INSTANCE"/${GIT_ORG}/${brand}/${codename}.git
+	git remote add origin https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}.git
 	git commit -asm "Add ${description}"
-	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"; } || (
+	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"; } || (
 		git update-ref -d HEAD
 		git reset system/ vendor/
 		git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 		git commit -asm "Add extras for ${description}"
-		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"
 		git add vendor/
 		git commit -asm "Add vendor for ${description}"
-		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"
 		git add system/system/app/ system/system/priv-app/ || git add system/app/ system/priv-app/
 		git commit -asm "Add apps for ${description}"
-		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"
 		git add system/
 		git commit -asm "Add system for ${description}"
-		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${brand}/${codename}.git "${branch}"
+		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"
 	)
 
 	# Try Pushing via SSH if HTTPS didn't work (it's an issue with gitlab for large repos)
