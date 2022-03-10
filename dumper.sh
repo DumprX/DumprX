@@ -712,7 +712,8 @@ fi
 neofetch || uname -r
 
 # Extract Files From All Usable PARTITIONS
-for p in ${PARTITIONS}; do
+for p in ${PARTITIONS}
+do
 	if ! echo "${p}" | grep -q "boot\|recovery\|dtbo\|tz"; then
 		if [[ -e "${p}.img" ]]; then
 			mkdir "${p}" 2>/dev/null || rm -rf "${p:?}"/*
@@ -738,8 +739,10 @@ for p in ${PARTITIONS}; do
 					fi
 				fi
 			fi
-
+		fi
+	fi
 done
+
 # Remove Unnecessary Image Leftover From OUTDIR
 for q in *.img; do
 	if ! echo "${q}" | grep -q "boot\|recovery\|dtbo\|tz"; then
