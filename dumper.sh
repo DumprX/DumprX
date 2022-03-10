@@ -123,6 +123,8 @@ UNPACKBOOT="${UTILSDIR}"/unpackboot.sh
 # Set Names of Downloader Utility Programs
 MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
+# EROFS
+FSCK_EROFS=${UTILSDIR}/bin/fsck.erofs
 
 # Partition List That Are Currently Supported
 PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo boot vendor_boot recovery tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap"
@@ -721,19 +723,14 @@ do
 			7z x "${p}".img -y -o"${p}"/ >/dev/null 2>&1
 			if [ $? -eq 0 ]; then
 				rm "$p".img > /dev/null 2>&1
-			else 
-			#handling e.g. erofs images, which can't be handled by 7z
+			else
+			#handling erofs images, which can't be handled by 7z
 				if [ -f $p.img ] && [ $p != "modem" ]; then
-					echo "Couldn't extract $p partition by 7z binary. Script will try to mount it instead (sudo password might be needed once)"
-					rm -rf "${p}"/* # to avoid "cannot overwrite non-directory 'system/system' with directory 'system_/system'" error
-					mkdir "${p}_/" || rm -rf "${p:?}"/*
-					sudo mount -t auto -o loop "$p".img "${p}_/"
+					echo "Couldn't extract $p partition by 7z. Using fsck.erofs."
+					rm -rf "${p}"/*
+					${FSCK_EROFS} --extract="$p" "$p".img
 					if [ $? -eq 0 ]; then
-						sudo cp -rf "${p}_/"* "${p}"
-						sudo umount "${p}_/"
-						sudo rm -rf "${p}_/"
 						rm -fv "$p".img > /dev/null 2>&1
-						sudo chown $(whoami) "${p}/" -R
 					else
 						echo "Couldn't extract $p partition. It might use an unsupported filesystem. For EROFS: make sure you're using Linux 5.4+ kernel"
 					fi
