@@ -861,7 +861,7 @@ otaver=$(grep -m1 -oP "(?<=^ro.build.version.ota=).*" -hs {vendor/euclid/product
 
 if [[ "$PUSH_TO_GITLAB" = true ]]; then
 	rm -rf .github_token
-	repo=$(echo "${brand}"/"${codename}" | tr '[:upper:]' '[:lower:]')
+	repo=$(printf "${brand}" | tr '[:upper:]' '[:lower:]' && echo -e "/${codename}")
 else
 	rm -rf .gitlab_token
 	repo=$(echo "${brand}"_"${codename}"_dump | tr '[:upper:]' '[:lower:]')
@@ -1019,13 +1019,13 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	curl --request POST \
 	--header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
 	--header "Content-Type: application/json" \
-	--data '{"name": "'"${brand}"'", "path": "'"${brand}"'", "visibility": "public", "parent_id": "'"${GRP_ID}"'"}' \
+	--data '{"name": "'"${brand}"'", "path": "'"$(echo ${brand} | tr [:upper:] [:lower:])"'", "visibility": "public", "parent_id": "'"${GRP_ID}"'"}' \
 	"${GITLAB_HOST}/api/v4/groups/"
 	echo ""
 
 	# Subgroup ID
 	get_gitlab_subgrp_id(){
-		local SUBGRP="$1"
+		local SUBGRP=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/${GIT_ORG}/subgroups | jq -r .[] | jq -r .path,.id > /tmp/subgrp.txt
 		local N_TMP=$(wc -l /tmp/subgrp.txt | cut -d\  -f1)
 		local i
