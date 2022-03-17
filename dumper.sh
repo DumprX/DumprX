@@ -1048,30 +1048,16 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# Delete the Temporary Files
 	rm -rf /tmp/subgrp_id.txt /tmp/subgrp.txt
 
-	git remote add origin https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}.git
-	git commit -asm "Add ${description}"
-	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"; } || (
-		git update-ref -d HEAD
-		git reset system/ vendor/
-		git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
-		git commit -asm "Add extras for ${description}"
-		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"
-		git add vendor/
-		git commit -asm "Add vendor for ${description}"
-		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"
-		git add system/system/app/ system/system/priv-app/ || git add system/app/ system/priv-app/
-		git commit -asm "Add apps for ${description}"
-		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"
-		git add system/
-		git commit -asm "Add system for ${description}"
-		git push https://${GIT_USER}:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git "${branch}"
-	)
-
-	# Try Pushing via SSH if HTTPS didn't work (it's an issue with gitlab for large repos)
+	# Commit and Push
+	# Pushing via HTTPS doesn't work on GitLab for Large Repos (it's an issue with gitlab for large repos)
 	# NOTE: Your SSH Keys Needs to be Added to your Gitlab Instance
-	git remote remove origin
 	git remote add origin git@${GITLAB_INSTANCE}:${GIT_ORG}/${repo}.git
-	git push origin ${branch}
+	git commit -asm "Add ${description}"
+	git push origin ${branch} || {
+		export branch="${incremental}"
+		git checkout -b ${branch}
+		git push origin ${branch}
+		}
 
 	# Telegram channel post
 	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
