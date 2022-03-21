@@ -1045,8 +1045,23 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	-X POST \
 	"${GITLAB_HOST}/api/v4/projects?name=${codename}&namespace_id=${SUBGRP_ID}&visibility=public"
 
+	# Get Project/Repo ID
+	get_gitlab_project_id(){
+		local PROJ="$1"
+		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/$2/projects | jq -r .[] | jq -r .path,.id > /tmp/proj.txt
+		local N_TMP=$(wc -l /tmp/proj.txt | cut -d\  -f1)
+		local i
+		for ((i=1; i<=$N_TMP; i++))
+		do
+			local TMP_I=$(cat /tmp/proj.txt | head -"$i" | tail -1)
+			[[ "$TMP_I" == "$PROJ" ]] && cat /tmp/proj.txt | head -$(("$i"+1)) | tail -1 > "$3"
+		done
+		}
+	get_gitlab_project_id ${codename} ${SUBGRP_ID} /tmp/proj_id.txt
+	PROJECT_ID=$(< /tmp/proj_id.txt)
+
 	# Delete the Temporary Files
-	rm -rf /tmp/subgrp_id.txt /tmp/subgrp.txt
+	rm -rf /tmp/subgrp_id.txt /tmp/subgrp.txt /tmp/proj_id.txt /tmp/proj.txt
 
 	# Commit and Push
 	# Pushing via HTTPS doesn't work on GitLab for Large Repos (it's an issue with gitlab for large repos)
@@ -1058,6 +1073,12 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		git checkout -b ${branch}
 		git push origin ${branch}
 		}
+
+	# Update the Default Branch
+	curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+    	--url ''https://gitlab.com/api/v4/projects/'${PROJECT_ID}''' \
+    	--data "default_branch=${branch}"
+	echo
 
 	# Telegram channel post
 	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
