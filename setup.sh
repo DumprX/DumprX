@@ -8,8 +8,13 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
         sudo dnf install -y unace unrar zip unzip sharutils uudeview arj cabextract file-roller dtc python3-pip brotli axel aria2 detox cpio lz4
     elif [[ "$(command -v pacman)" != "" ]]; then
         sudo pacman -Syyu --noconfirm
-        sudo pacman -Sy --noconfirm unace unrar zip unzip p7zip sharutils uudeview arj cabextract file-roller dtc python-pip brotli axel gawk aria2 detox cpio lz4 jq
-        [[ -z "$(command -v pip3)" ]] && sudo ln -sf $(command -v pip) /usr/bin/pip3
+        sudo pacman -Sy --noconfirm unace unrar zip unzip p7zip sharutils uudeview arj cabextract file-roller dtc brotli axel gawk aria2 detox cpio lz4 jq
+
+        # python
+        sudo ln -sf /usr/bin/pip3.10 /usr/bin/pip3
+        sudo ln -sf /usr/bin/pip3.10 /usr/bin/pip
+        sudo ln -sf /usr/bin/python3.10 /usr/bin/python3
+        sudo ln -sf /usr/bin/python3.10 /usr/bin/python
     fi
     PIP=pip3
 elif [[ "$OSTYPE" == "darwin"* ]]; then
