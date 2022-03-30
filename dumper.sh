@@ -885,30 +885,28 @@ if [[ -f ${twrpimg} ]]; then
 	mkdir -p $twrpdtout
     python3 -m twrpdtgen $twrpimg -o $twrpdtout
     if [[ "$?" = 0 ]]; then
-        [[ ! -e "${PROJECT_DIR}"/working/"${UNZIP_DIR}"/twrp-device-tree/README.md ]] && curl https://raw.githubusercontent.com/wiki/SebaUbuntu/TWRP-device-tree-generator/4.-Build-TWRP-from-source.md > ${twrpdtout}/README.md
+        [[ ! -e "${OUTDIR}"/twrp-device-tree/README.md ]] && curl https://raw.githubusercontent.com/wiki/SebaUbuntu/TWRP-device-tree-generator/4.-Build-TWRP-from-source.md > ${twrpdtout}/README.md
     fi
 fi
 
 # Remove all .git directories from twrpdtout
 rm -rf $(find $twrpdtout -type d -name ".git")
 
+# copy file names
+chown "$(whoami)" ./* -R
+chmod -R u+rwX ./*		#ensure final permissions
+find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
+
 # Generate LineageOS Trees
 aospdtout="lineage-device-tree"
 mkdir -p $aospdtout
-python3 -m aospdtgen . -o $aospdtout
+python3 -m aospdtgen $OUTDIR -o $aospdtout
 
 # Remove all .git directories from aospdtout
 rm -rf $(find $aospdtout -type d -name ".git")
 
-# copy file names
-chown "$(whoami)" ./* -R
-chmod -R u+rwX ./*		#ensure final permissions
-find . -type f | cut -d'/' -f'2-' | grep -v ".git/" > "${TMPDIR}"/all_filenames.txt
-printf "Calculating Data File Sizes, Please Wait...\n"
-while read -r i; do
-	du -b "${i}" >> "${TMPDIR}"/sized_files.txt
-done < "${TMPDIR}"/all_filenames.txt
-sort -nr < "${TMPDIR}"/sized_files.txt > "${OUTDIR}"/all_files.txt
+# Regenerate all_files.txt
+find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
 
 rm -rf "${TMPDIR}" 2>/dev/null
 
