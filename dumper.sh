@@ -889,8 +889,16 @@ if [[ -f ${twrpimg} ]]; then
     fi
 fi
 
-# Remove all .git from twrpdtout
+# Remove all .git directories from twrpdtout
 rm -rf $(find $twrpdtout -type d -name ".git")
+
+# Generate LineageOS Trees
+aospdtout="lineage-device-tree"
+mkdir -p $aospdtout
+python3 -m aospdtgen . -o $aospdtout
+
+# Remove all .git directories from aospdtout
+rm -rf $(find $aospdtout -type d -name ".git")
 
 # copy file names
 chown "$(whoami)" ./* -R

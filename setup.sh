@@ -9,6 +9,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     elif [[ "$(command -v pacman)" != "" ]]; then
         sudo pacman -Syyu --noconfirm
         sudo pacman -Sy --noconfirm unace unrar zip unzip p7zip sharutils uudeview arj cabextract file-roller dtc python-pip brotli axel gawk aria2 detox cpio lz4 jq
+        [[ -z "$(command -v pip3)" ]] && sudo ln -sf $(command -v pip) /usr/bin/pip3
     fi
     PIP=pip3
 elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -17,3 +18,10 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 sudo "$PIP" install backports.lzma extract-dtb protobuf pycrypto docopt zstandard twrpdtgen
+
+# aospdtgen
+git clone --depth=1 --single-branch https://github.com/SebaUbuntu/aospdtgen.git /tmp/aospdtgen
+cd /tmp/aospdtgen
+$PIP install .
+cd -
+rm -rf /tmp/aospdtgen
