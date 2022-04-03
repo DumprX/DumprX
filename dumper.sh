@@ -1081,9 +1081,10 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		}
 
 	# Update the Default Branch
-	curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-    	--url ''https://gitlab.com/api/v4/projects/'${PROJECT_ID}''' \
-    	--data "default_branch=${branch}"
+	curl	--request PUT \
+		--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+		--url https://gitlab.com/api/v4/projects/${PROJECT_ID} \
+		--data "default_branch=${branch}"
 	echo
 
 	# Telegram channel post
