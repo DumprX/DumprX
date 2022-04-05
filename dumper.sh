@@ -1071,11 +1071,13 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# NOTE: Your SSH Keys Needs to be Added to your Gitlab Instance
 	git remote add origin git@${GITLAB_INSTANCE}:${GIT_ORG}/${repo}.git
 	git commit -asm "Add ${description}"
-	git push origin ${branch} || {
-		export branch="${incremental}"
-		git checkout -b ${branch}
-		git push origin ${branch}
-		}
+	while [[ -z $(curl -sL https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt | grep "Not Found") ]]
+	do
+	echo "Pusing to https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git via SSH..."
+	echo "Branch: ${branch}"
+	sleep 1
+	git push -u origin ${branch}
+	done
 
 	# Update the Default Branch
 	curl	--request PUT \
