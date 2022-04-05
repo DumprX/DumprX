@@ -1064,7 +1064,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	PROJECT_ID=$(< /tmp/proj_id.txt)
 
 	# Delete the Temporary Files
-	rm -rf /tmp/subgrp_id.txt /tmp/subgrp.txt /tmp/proj_id.txt /tmp/proj.txt
+	rm -rf /tmp/{subgrp,subgrp_id,proj,proj_id}.txt
 
 	# Commit and Push
 	# Pushing via HTTPS doesn't work on GitLab for Large Repos (it's an issue with gitlab for large repos)
