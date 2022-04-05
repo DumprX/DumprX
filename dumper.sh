@@ -989,8 +989,6 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	fi
 
 elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
-	[[ -z "$(git config --get user.email)" ]] && git config user.email "guptasushrut@gmail.com"
-	[[ -z "$(git config --get user.name)" ]] && git config user.name "Sushrut1101"
 	if [[ -s "${PROJECT_DIR}"/.gitlab_group ]]; then
 		GIT_ORG=$(< "${PROJECT_DIR}"/.gitlab_group)	# Set Your Gitlab Group Name
 	else
@@ -1015,6 +1013,8 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
 	[[ ! -s .gitignore ]] && rm .gitignore
+	[[ -z "$(git config --get user.email)" ]] && git config user.email "guptasushrut@gmail.com"
+	[[ -z "$(git config --get user.name)" ]] && git config user.name "Sushrut1101"
 	git add --all
 
 	# Create Subgroup
