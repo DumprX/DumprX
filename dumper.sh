@@ -1002,7 +1002,8 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	GITLAB_HOST="https://${GITLAB_INSTANCE}"
 
 	# Check if already dumped or not
-	curl -sf "https://"$GITLAB_INSTANCE"/${GIT_ORG}/${REPO}/-/raw/${branch}/all_files.txt" | grep "all_files.txt" && { printf "Firmware already dumped!\nGo to https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}/-/tree/${branch}\n" && exit 1; }  # Add grep to fix gitlab login error
+	[[ ! -z $(curl -sL "https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "system/") ]] && { printf "Firmware already dumped!\nGo to https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}/-/tree/${branch}\n" && exit 1; }  # Add grep to fix gitlab error
+
 	# Remove The Journal File Inside System/Vendor
 	find . -mindepth 2 -type d -name "\[SYS\]" -exec rm -rf {} \; 2>/dev/null
 	printf "\nFinal Repository Should Look Like...\n" && ls -lAog
@@ -1071,7 +1072,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# NOTE: Your SSH Keys Needs to be Added to your Gitlab Instance
 	git remote add origin git@${GITLAB_INSTANCE}:${GIT_ORG}/${repo}.git
 	git commit -asm "Add ${description}"
-	while [[ -z $(curl -sL https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt | grep "Not Found") ]]
+	while [[ -z $(curl -sL "https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "system/") ]]
 	do
 	echo "Pusing to https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git via SSH..."
 	echo "Branch: ${branch}"
