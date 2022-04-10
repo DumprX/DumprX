@@ -120,6 +120,7 @@ UNPACKBOOT="${UTILSDIR}"/unpackboot.sh
 # Set Names of Downloader Utility Programs
 MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
+
 # EROFS
 FSCK_EROFS=${UTILSDIR}/bin/fsck.erofs
 
@@ -710,30 +711,43 @@ fi
 # Show some info
 neofetch || uname -r
 
-# Extract Files From All Usable PARTITIONS
-for p in ${PARTITIONS}
+# Extract Partitions
+for p in $PARTITIONS
 do
 	if ! echo "${p}" | grep -q "boot\|recovery\|dtbo\|tz"; then
-		if [[ -e "${p}.img" ]]; then
-			mkdir "${p}" 2>/dev/null || rm -rf "${p:?}"/*
-			printf "Extracting %s partition\n" "${p}"
-			7z x "${p}".img -y -o"${p}"/ >/dev/null 2>&1
-			if [ $? -eq 0 ]; then
-				rm "$p".img > /dev/null 2>&1
-			else
-			#handling erofs images, which can't be handled by 7z
-				if [ -f $p.img ] && [ $p != "modem" ]; then
-					echo "Couldn't extract $p partition by 7z. Using fsck.erofs."
-					rm -rf "${p}"/*
-					${FSCK_EROFS} --extract="$p" "$p".img
-					if [ $? -eq 0 ]; then
-						rm -fv "$p".img > /dev/null 2>&1
-					else
-						echo "Couldn't extract $p partition. It might use an unsupported filesystem. For EROFS: make sure you're using Linux 5.4+ kernel"
-					fi
-				fi
-			fi
-		fi
+    	if [[ -e "$p.img" ]]; then
+    	    mkdir "$p" 2> /dev/null || rm -rf "${p:?}"/*
+    	    echo "Extracting $p partition"
+    	    7z x "$p".img -y -o"$p"/ > /dev/null 2>&1
+    	    if [ $? -eq 0 ]; then
+    	        rm "$p".img > /dev/null 2>&1
+    	    else
+    	    	#handling erofs images, which can't be handled by 7z
+    	        if [ -f $p.img ] && [ $p != "modem" ]; then
+    	            echo "Couldn't extract $p partition by 7z. Using fsck.erofs."
+    	            rm -rf "${p}"/*
+    	            $FSCK_EROFS --extract="$p" "$p".img
+    	            if [ $? -eq 0 ]; then
+    	                rm -fv "$p".img > /dev/null 2>&1
+    	            else
+    	                echo "Couldn't extract $p partition by fsck.erofs. Using mount loop"
+    	                sudo mount -o loop -t auto "$p".img "$p"
+    	                mkdir "${p}_"
+    	                sudo cp -rf "${p}/"* "${p}_"
+    	                sudo umount "${p}"
+    	                sudo cp -rf "${p}_/"* "${p}"
+    	                sudo rm -rf "${p}_"
+    	                if [ $? -eq 0 ]; then
+    	                    rm -fv "$p".img > /dev/null 2>&1
+    	                else
+    	                    echo "Couldn't extract $p partition. It might use an unsupported filesystem."
+    	                    echo "For EROFS: make sure you're using Linux 5.4+ kernel."
+    	                    echo "For F2FS: make sure you're using Linux 5.15+ kernel."
+    	                fi
+    	            fi
+    	        fi
+    	    fi
+    	fi
 	fi
 done
 
