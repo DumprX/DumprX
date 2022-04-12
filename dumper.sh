@@ -217,14 +217,26 @@ else
 fi
 
 cd "${PROJECT_DIR}"/ || exit
-# Function for extracting superimage
+
+# Function for Extracting Super Images
 function superimage_extract() {
-	for partition in ${PARTITIONS}; do
-		printf "Extracting %s from super image\n" "${partition}"
-		( "${LPUNPACK}" --partition="${partition}"_a super.img.raw || "${LPUNPACK}" --partition="${partition}" super.img.raw ) 2>/dev/null
-		[[ -f "${partition}"_a.img ]] && mv "${partition}"_a.img "${partition}".img
-	done
-	rm -rf super.img.raw super.img 2>/dev/null
+    if [ -f super.img ]; then
+        echo "Super Image Detected ..."
+        ${SIMG2IMG} super.img super.img.raw 2>/dev/null
+    fi
+    if [[ ! -s super.img.raw ]] && [ -f super.img ]; then
+        mv super.img super.img.raw
+    fi
+    for partition in $PARTITIONS; do
+        ($LPUNPACK --partition="$partition"_a super.img.raw || $LPUNPACK --partition="$partition" super.img.raw) 2>/dev/null
+        if [ -f "$partition"_a.img ]; then
+            mv "$partition"_a.img "$partition".img
+        else
+            foundpartitions=$(7z l -ba "${FILEPATH}" | rev | gawk '{ print $1 }' | rev | grep $partition.img)
+            7z e -y "${FILEPATH}" $foundpartitions dummypartition 2>/dev/null >> $TMPDIR/zip.log
+        fi
+    done
+    rm -rf super.img.raw
 }
 
 printf "Extracting firmware on: %s\n" "${OUTDIR}"
