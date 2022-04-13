@@ -221,7 +221,7 @@ cd "${PROJECT_DIR}"/ || exit
 # Function for Extracting Super Images
 function superimage_extract() {
     if [ -f super.img ]; then
-        echo "Super Image Detected ..."
+        echo "Extracting Partitions from the Super Image..."
         ${SIMG2IMG} super.img super.img.raw 2>/dev/null
     fi
     if [[ ! -s super.img.raw ]] && [ -f super.img ]; then
@@ -532,9 +532,18 @@ elif 7z l -ba "${FILEPATH}" | grep -q "system-sign.img" 2>/dev/null || [[ $(find
 			dd if="${TMPDIR}"/"${file}" of="${TMPDIR}"/x.img bs=$((0x4040)) skip=1 >/dev/null 2>&1
 		fi
 	done
-elif 7z l -ba "${FILEPATH}" | grep -q -oP "(super.img|super.[0-9].+.img)" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "super.*img" | wc -l) -ge 1 ]]; then
-	printf "Super Image Detected\n"
-	#mv -f "${FILEPATH}" "${TMPDIR}"/
+elif [[ $(7z l -ba "$FILEPATH" | grep "super.img") ]]; then
+	echo "Super Image detected"
+	foundsupers=$(7z l -ba "${FILEPATH}" | gawk '{ print $NF }' | grep "super.img")
+	7z e -y "${FILEPATH}" $foundsupers dummypartition 2>/dev/null >> ${TMPDIR}/zip.log
+	superchunk=$(ls | grep chunk | grep super | sort)
+	if [[ $(echo "$superchunk" | grep "sparsechunk") ]]; then
+		"${SIMG2IMG}" $(echo "$superchunk" | tr '\n' ' ') super.img.raw 2>/dev/null
+		rm -rf *super*chunk*
+	fi
+	superimage_extract || exit 1
+elif [[ $(find "${TMPDIR}" -type f -name "super*.*img" | wc -l) -ge 1 ]]; then
+	echo "Super Image Detected"
 	if [[ -f "${FILEPATH}" ]]; then
 		foundsupers=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "super.*img")
 		7z e -y -- "${FILEPATH}" "${foundsupers}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
@@ -550,11 +559,6 @@ elif 7z l -ba "${FILEPATH}" | grep -q -oP "(super.img|super.[0-9].+.img)" 2>/dev
 		printf "Creating super.img.raw ...\n"
 		"${SIMG2IMG}" ${superchunk} super.img.raw 2>/dev/null
 		rm -rf -- *super*chunk*
-	fi
-	if [[ -f super.img ]]; then
-		printf "Creating super.img.raw ...\n"
-		"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
-		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
 	fi
 	superimage_extract || exit 1
 elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*AP_*tar.md5" | wc -l) -ge 1 ]]; then
@@ -724,42 +728,42 @@ fi
 neofetch || uname -r
 
 # Extract Partitions
-for p in $PARTITIONS
-do
+for p in $PARTITIONS; do
 	if ! echo "${p}" | grep -q "boot\|recovery\|dtbo\|tz"; then
-    	if [[ -e "$p.img" ]]; then
-    	    mkdir "$p" 2> /dev/null || rm -rf "${p:?}"/*
-    	    echo "Extracting $p partition"
-    	    7z x "$p".img -y -o"$p"/ > /dev/null 2>&1
-    	    if [ $? -eq 0 ]; then
-    	        rm "$p".img > /dev/null 2>&1
-    	    else
-    	    	#handling erofs images, which can't be handled by 7z
-    	        if [ -f $p.img ] && [ $p != "modem" ]; then
-    	            echo "Couldn't extract $p partition by 7z. Using fsck.erofs."
-    	            rm -rf "${p}"/*
-    	            $FSCK_EROFS --extract="$p" "$p".img
-    	            if [ $? -eq 0 ]; then
-    	                rm -fv "$p".img > /dev/null 2>&1
-    	            else
-    	                echo "Couldn't extract $p partition by fsck.erofs. Using mount loop"
-    	                sudo mount -o loop -t auto "$p".img "$p"
-    	                mkdir "${p}_"
-    	                sudo cp -rf "${p}/"* "${p}_"
-    	                sudo umount "${p}"
-    	                sudo cp -rf "${p}_/"* "${p}"
-    	                sudo rm -rf "${p}_"
-    	                if [ $? -eq 0 ]; then
-    	                    rm -fv "$p".img > /dev/null 2>&1
-    	                else
-    	                    echo "Couldn't extract $p partition. It might use an unsupported filesystem."
-    	                    echo "For EROFS: make sure you're using Linux 5.4+ kernel."
-    	                    echo "For F2FS: make sure you're using Linux 5.15+ kernel."
-    	                fi
-    	            fi
-    	        fi
-    	    fi
-    	fi
+		if [[ -e "$p.img" ]]; then
+			mkdir "$p" 2> /dev/null || rm -rf "${p:?}"/*
+			echo "Extracting $p partition..."
+			7z x "$p".img -y -o"$p"/ > /dev/null 2>&1
+			if [ $? -eq 0 ]; then
+				rm "$p".img > /dev/null 2>&1
+			else
+				# Handling EROFS Images, which can't be handled by 7z.
+				echo "Extraction Failed my 7z"
+				if [ -f $p.img ] && [ $p != "modem" ]; then
+					echo "Couldn't extract $p partition by 7z. Using fsck.erofs."
+					rm -rf "${p}"/*
+					"${FSCK_EROFS}" --extract="$p" "$p".img
+					if [ $? -eq 0 ]; then
+						rm -fv "$p".img > /dev/null 2>&1
+					else
+						echo "Couldn't extract $p partition by fsck.erofs. Using mount loop"
+						sudo mount -o loop -t auto "$p".img "$p"
+						mkdir "${p}_"
+						sudo cp -rf "${p}/"* "${p}_"
+						sudo umount "${p}"
+						sudo cp -rf "${p}_/"* "${p}"
+						sudo rm -rf "${p}_"
+						if [ $? -eq 0 ]; then
+							rm -fv "$p".img > /dev/null 2>&1
+						else
+							echo "Couldn't extract $p partition. It might use an unsupported filesystem."
+							echo "For EROFS: make sure you're using Linux 5.4+ kernel."
+							echo "For F2FS: make sure you're using Linux 5.15+ kernel."
+						fi
+					fi
+				fi
+			fi
+		fi
 	fi
 done
 
