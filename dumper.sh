@@ -487,6 +487,9 @@ elif 7z l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${TMPDIR}" 
 	for file in ${pac_list}; do
 		"${PACEXTRACTOR}" -f "${file}"
 	done
+	if [[ -f super.img ]]; then
+		superimage_extract || exit 1
+	fi
 elif 7z l -ba "${FILEPATH}" | grep -q "system.bin" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.bin" | wc -l) -ge 1 ]]; then
 	printf "bin Images Detected\n"
 	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
