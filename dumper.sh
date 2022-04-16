@@ -621,7 +621,6 @@ elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" 2>/dev/null 
 		exit
 	done
 	rm -rf "${TMPDIR:?}"/"${UNZIP_DIR}"
-	exit 0
 elif 7z l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "UPDATE.APP") ]]; then
 	printf "Huawei UPDATE.APP Detected\n"
 	[[ -f "${FILEPATH}" ]] && 7z x "${FILEPATH}" UPDATE.APP 2>/dev/null >> "${TMPDIR}"/zip.log
