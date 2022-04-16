@@ -98,6 +98,7 @@ curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/h
 # Set Utility Program Alias
 SDAT2IMG="${UTILSDIR}"/sdat2img.py
 SIMG2IMG="${UTILSDIR}"/bin/simg2img
+PACKSPARSEIMG="${UTILSDIR}"/bin/packsparseimg
 UNSIN="${UTILSDIR}"/unsin
 PAYLOAD_EXTRACTOR="${UTILSDIR}"/ota_payload_extractor/extract_android_ota_payload.py
 DTB_EXTRACTOR="${UTILSDIR}"/extract-dtb.py
@@ -426,6 +427,28 @@ if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "$
 			rm -rf ${line}.transfer.list ${line}.new.dat
 		done
 	done
+elif 7z l -ba "${FILEPATH}" | grep rawprogram || [[ $(find "${TMPDIR}" -type f -name "*rawprogram*" | wc -l) -ge 1 ]]; then
+	echo "QFIL Detected"
+	rawprograms=$(7z l -ba ${FILEPATH} | gawk '{ print $NF }' | grep rawprogram)
+	7z e -y ${FILEPATH} $rawprograms 2>/dev/null >> ${TMPDIR}/zip.log
+	for partition in $PARTITIONS; do
+		partitionsonzip=$(7z l -ba ${FILEPATH} | gawk '{ print $NF }' | grep $partition)
+		if [[ ! $partitionsonzip == "" ]]; then
+			7z e -y ${FILEPATH} $partitionsonzip 2>/dev/null >> ${TMPDIR}/zip.log
+			if [[ ! -f "$partition.img" ]]; then
+				if [[ -f "$partition.raw.img" ]]; then
+					mv "$partition.raw.img" "$partition.img"
+				else
+					rawprogramsfile=$(grep -rlw $partition rawprogram*.xml)
+					"${PACKSPARSEIMG}" -t $partition -x $rawprogramsfile > ${TMPDIR}/extract.log
+					mv "$partition.raw" "$partition.img"
+				fi
+			fi
+		fi
+	done
+	if [[ -f super.img ]]; then
+		superimage_extract || exit 1
+	fi
 elif 7z l -ba "${FILEPATH}" | grep -q ".*.nb0" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*.nb0*" | wc -l) -ge 1 ]]; then
 	printf "nb0-Formatted Firmware Detected.\n"
 	if [[ -f "${FILEPATH}" ]]; then
