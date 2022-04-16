@@ -384,43 +384,26 @@ fi
 # Extract/Put Image/Extra Files In TMPDIR
 if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.new.dat*" -print | wc -l) -ge 1 ]]; then
 	printf "A-only DAT-Formatted OTA detected.\n"
-	for partition in ${PARTITIONS}; do
-		if [[ -f "${FILEPATH}" ]]; then
-			7z e -y "${FILEPATH}" "${partition}".new.dat* "${partition}".transfer.list "${partition}".img 2>/dev/null >> "${TMPDIR}"/zip.log
-		else
-			find "${TMPDIR}" -type f \( -name "${partition}.new.dat*" -o -name "${partition}.transfer.list" -o -name "${partition}.img" \) -exec mv {} . \;
+	for partition in $PARTITIONS; do
+		7z e -y "${FILEPATH}" ${partition}.new.dat* ${partition}.transfer.list ${partition}.img 2>/dev/null >> ${TMPDIR}/zip.log
+		if [[ -f ${partition}.new.dat.1 ]]; then
+			cat ${partition}.new.dat.{0..999} 2>/dev/null >> ${partition}.new.dat
+			rm -rf ${partition}.new.dat.{0..999}
 		fi
-		# Join Split Compressed dat Files, If Any
-		compr=(br xz)
-		for e in "${compr[@]}"; do
-			if [[ -f "${partition}".new.dat."${e}".1 ]]; then
-				printf "Joining %s-compressed Split dat Files...\n" "${e}"
-				cat "${partition}".new.dat."${e}".{0..999} 2>/dev/null >> "${partition}".new.dat."${e}"
-				rm -rf "${partition}".new.dat."${e}".{0..999} 2>/dev/null
+		ls | grep "\.new\.dat" | while read i; do
+			line=$(echo "$i" | cut -d"." -f1)
+			if [[ $(echo "$i" | grep "\.dat\.xz") ]]; then
+				7z e -y "$i" 2>/dev/null >> ${TMPDIR}/zip.log
+				rm -rf "$i"
 			fi
-		done
-		# Fallback, Join Split Normal dat Files
-		if [[ -f "${partition}".new.dat.1 ]]; then
-			printf "Joining Split dat Files...\n"
-			cat "${partition}".new.dat.{0..999} 2>/dev/null >> "${partition}".new.dat
-			rm -rf "${partition}".new.dat.{0..999} 2>/dev/null
-		fi
-		# Check: If dat* Is Compressed, Then Uncompress
-		find . -maxdepth 1 -type f -name "*.new.dat.*" | cut -d'/' -f'2-' | while read -r i; do
-			line=$(echo "${i}" | cut -d'.' -f1)
-			if echo "${i}" | grep -q ".*.dat\.xz"; then
-				printf "Converting xz %s dat To Normal\n" "${partition}"
-				7z e -y "${i}" 2>/dev/null >> "${TMPDIR}"/zip.log
-				rm -rf "${i}"
+			if [[ $(echo "$i" | grep "\.dat\.br") ]]; then
+				echo "Converting brotli ${partition} dat to normal"
+				brotli -d "$i"
+				rm -f "$i"
 			fi
-			if echo "${i}" | grep -q ".*.dat\.br"; then
-				printf "Converting brotli %s dat To Normal\n" "${partition}"
-				brotli -d "${i}"
-				rm -rf "${i}"
-			fi
-			printf "Converting To %s Image...\n" "${partition}"
-			python3 "${SDAT2IMG}" "${line}".transfer.list "${line}".new.dat "${TMPDIR}"/"${line}".img > "${TMPDIR}"/extract.log
-			rm -rf "${line}".transfer.list "${line}".new.dat
+			echo "Extracting ${partition}"
+			python3 ${SDAT2IMG} ${line}.transfer.list ${line}.new.dat "${OUTDIR}"/${line}.img > ${TMPDIR}/extract.log
+			rm -rf ${line}.transfer.list ${line}.new.dat
 		done
 	done
 elif 7z l -ba "${FILEPATH}" | grep -q ".*.nb0" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*.nb0*" | wc -l) -ge 1 ]]; then
