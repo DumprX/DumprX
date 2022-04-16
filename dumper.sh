@@ -612,11 +612,8 @@ elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>
 		printf "Extracted %s\n" "${i}"
 	done
 	if [[ -f super.img ]]; then
-		printf "Creating super.img.raw ...\n"
-		"${SIMG2IMG}" super.img super.img.raw 2>/dev/null
-		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
+		superimage_extract || exit 1	
 	fi
-	superimage_extract || exit 1
 	if [[ ! -f system.img ]]; then
 		printf "Extract failed\n"
 		rm -rf "${TMPDIR}" && exit 1
