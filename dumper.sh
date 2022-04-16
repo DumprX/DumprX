@@ -117,6 +117,7 @@ DZ_EXTRACT="${UTILSDIR}"/kdztools/undz.py
 RUUDECRYPT="${UTILSDIR}"/RUU_Decrypt_Tool
 EXTRACT_IKCONFIG="${UTILSDIR}"/extract-ikconfig
 UNPACKBOOT="${UTILSDIR}"/unpackboot.sh
+AML_EXTRACT="${UTILSDIR}"/aml-upgrade-package-extract
 # Set Names of Downloader Utility Programs
 MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
@@ -125,7 +126,7 @@ AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
 FSCK_EROFS=${UTILSDIR}/bin/fsck.erofs
 
 # Partition List That Are Currently Supported
-PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo boot vendor_boot recovery tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap my_custom my_manifest my_carrier my_region my_bigball my_version special_preload vendor_dlkm odm_dlkm"
+PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo dtb boot vendor_boot recovery tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap my_custom my_manifest my_carrier my_region my_bigball my_version special_preload vendor_dlkm odm_dlkm"
 EXT4PARTITIONS="system vendor cust odm oem factory product xrom systemex oppo_product preload_common"
 OTHERPARTITIONS="tz.mbn:tz tz.img:tz modem.img:modem NON-HLOS:modem boot-verified.img:boot recovery-verified.img:recovery dtbo-verified.img:dtbo"
 
@@ -363,6 +364,25 @@ if echo "${FILEPATH}" | grep -i "^ruu_" | grep -q -i "exe$" || [[ "${EXTENSION}"
 	"${RUUDECRYPT}" -s "${FILE}" 2>/dev/null
 	"${RUUDECRYPT}" -f "${FILE}" 2>/dev/null
 	find "${TMPDIR}"/OUT* -name "*.img" -exec mv {} "${TMPDIR}"/ \;
+fi
+
+# Amlogic upgrade package (AML) Check
+if [[ $(7z l -ba "${FILEPATH}" | grep -i aml) ]]; then
+	echo "AML Detected"
+	cp "${FILEPATH}" ${TMPDIR}
+	FILE="${TMPDIR}/$(basename ${FILEPATH})"
+	7z e -y "${FILEPATH}" >> ${TMPDIR}/zip.log
+	"${AML_EXTRACT}" $(find . -type f -name "*aml*.img")
+	rename 's/.PARTITION$/.img/' *.PARTITION
+	rename 's/_aml_dtb.img$/dtb.img/' *.img
+	rename 's/_a.img/.img/' *.img
+	if [[ -f super.img ]]; then
+		superimage_extract || exit 1
+	fi
+	for partition in $PARTITIONS; do
+		[[ -e "${TMPDIR}/${partition}.img" ]] && mv "${TMPDIR}/${partition}.img" "${OUTDIR}/${partition}.img"
+	done
+	rm -rf ${TMPDIR}
 fi
 
 # Extract & Move Raw Otherpartitons To OUTDIR
