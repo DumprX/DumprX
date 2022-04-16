@@ -614,6 +614,9 @@ elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>
 	if [[ -f super.img ]]; then
 		superimage_extract || exit 1	
 	fi
+	if [[ -f system.img.ext4 ]]; then
+		find "${TMPDIR}" -maxdepth 1 -type f -name "*.img.ext4" | rename 's/.img.ext4/.img/g' > /dev/null 2>&1
+	fi
 	if [[ ! -f system.img ]]; then
 		printf "Extract failed\n"
 		rm -rf "${TMPDIR}" && exit 1
