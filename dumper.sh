@@ -402,6 +402,18 @@ if [[ -f "${FILEPATH}" ]]; then
 	done
 fi
 
+# PAC Archive Check
+if [[ ${EXTENSION} = "pac" ]]
+then
+	cd "${PROJECT_DIR}"
+	mkdir -p input/pacextract
+	printf "PAC Archive Detected\nExtracting the PAC Archive...\n"
+	"${PACEXTRACTOR}" -f "${FILEPATH}" -o "${PROJECT_DIR}/input/pacextract" > /dev/null
+	rm -rf "${FILEPATH}"
+	bash "${0}" "${PROJECT_DIR}/input/pacextract" || exit 1
+	exit 0
+fi
+
 # Extract/Put Image/Extra Files In TMPDIR
 if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.new.dat*" -print | wc -l) -ge 1 ]]; then
 	printf "A-only DAT-Formatted OTA detected.\n"
