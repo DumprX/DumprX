@@ -25,8 +25,4 @@ fi
 sudo "$PIP" install backports.lzma extract-dtb protobuf pycrypto docopt zstandard twrpdtgen
 
 # aospdtgen
-git clone --depth=1 --single-branch https://github.com/SebaUbuntu/aospdtgen.git /tmp/aospdtgen
-cd /tmp/aospdtgen
-$PIP install .
-cd -
-rm -rf /tmp/aospdtgen
+$PIP install git+https://github.com/SebaUbuntu/aospdtgen
