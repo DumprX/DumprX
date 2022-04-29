@@ -309,9 +309,10 @@ if [[ "${EXTENSION}" == "ofp" ]]; then
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
 	printf "Decrypting ofp & extracing...\n"
 	python3 "$OFP_QC_DECRYPT" "${TMPDIR}"/"${FILE}" out
-	if [[ ! -f "${TMPDIR}"/out/boot.img || ! -f "${TMPDIR}"/out/userdata.img ]]; then
+	if [[ ! -f "${TMPDIR}"/out/system.img || ! -f "${TMPDIR}"/out/super.img ]]; then
+		printf "Trying MTK Ofp Decrypt\n"
 		python3 "$OFP_MTK_DECRYPT" "${TMPDIR}"/"${FILE}" out
-		if [[ ! -f "${TMPDIR}"/out/boot.img || ! -f "${TMPDIR}"/out/userdata.img ]]; then
+		if [[ ! -f "${TMPDIR}"/out/system.img || ! -f "${TMPDIR}"/out/super.img ]]; then
 			printf "ofp decryption error.\n" && exit 1
 		fi
 	fi
