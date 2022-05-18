@@ -420,6 +420,13 @@ if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "$
 	printf "A-only DAT-Formatted OTA detected.\n"
 	for partition in $PARTITIONS; do
 		7z e -y "${FILEPATH}" ${partition}.new.dat* ${partition}.transfer.list ${partition}.img 2>/dev/null >> ${TMPDIR}/zip.log
+		7z e -y "${FILEPATH}" ${partition}.*.new.dat* ${partition}.*.transfer.list ${partition}.*.img 2>/dev/null >> ${TMPDIR}/zip.log
+		rename 's/(\w+)\.(\d+)\.(\w+)/$1.$3/' *
+		# For Oplus A-only OTAs, eg OnePlus Nord 2. Regex matches the 8 digits of Oplus NV ID (prop ro.build.oplus_nv_id) to remove them.
+		# hello@world:~/test_regex# rename -n 's/(\w+)\.(\d+)\.(\w+)/$1.$3/' *
+		# rename(my_bigball.00011011.new.dat.br, my_bigball.new.dat.br)
+		# rename(my_bigball.00011011.patch.dat, my_bigball.patch.dat)
+		# rename(my_bigball.00011011.transfer.list, my_bigball.transfer.list)
 		if [[ -f ${partition}.new.dat.1 ]]; then
 			cat ${partition}.new.dat.{0..999} 2>/dev/null >> ${partition}.new.dat
 			rm -rf ${partition}.new.dat.{0..999}
