@@ -7,7 +7,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     elif [[ "$(command -v dnf)" != "" ]]; then
         sudo dnf install -y unace unrar zip unzip sharutils uudeview arj cabextract file-roller dtc python3-pip brotli axel aria2 detox cpio lz4 python3-devel xz-devel p7zip p7zip-plugins
     elif [[ "$(command -v pacman)" != "" ]]; then
-        sudo pacman -Syyu --noconfirm
+        sudo pacman -Syyu --needed --noconfirm 2>&1 | grep -v "warning: could not get file information"
         sudo pacman -Sy --noconfirm unace unrar zip unzip p7zip sharutils uudeview arj cabextract file-roller dtc brotli axel gawk aria2 detox cpio lz4 jq
 
         # python
