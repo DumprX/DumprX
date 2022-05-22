@@ -959,16 +959,21 @@ cat "${OUTDIR}"/README.md
 # Generate TWRP Trees
 twrpdtout="twrp-device-tree"
 if [[ "$is_ab" = true ]]; then
-    twrpimg=boot.img
+	if [ -f recovery.img ]; then
+		printf "Legacy A/B with recovery partition detected...\n"
+		twrpimg="recovery.img"
+	else
+	twrpimg="boot.img"
+	fi
 else
-    twrpimg=recovery.img
+	twrpimg="recovery.img"
 fi
 if [[ -f ${twrpimg} ]]; then
 	mkdir -p $twrpdtout
-    python3 -m twrpdtgen $twrpimg -o $twrpdtout
-    if [[ "$?" = 0 ]]; then
-        [[ ! -e "${OUTDIR}"/twrp-device-tree/README.md ]] && curl https://raw.githubusercontent.com/wiki/SebaUbuntu/TWRP-device-tree-generator/4.-Build-TWRP-from-source.md > ${twrpdtout}/README.md
-    fi
+	python3 -m twrpdtgen $twrpimg -o $twrpdtout
+	if [[ "$?" = 0 ]]; then
+		[[ ! -e "${OUTDIR}"/twrp-device-tree/README.md ]] && curl https://raw.githubusercontent.com/wiki/SebaUbuntu/TWRP-device-tree-generator/4.-Build-TWRP-from-source.md > ${twrpdtout}/README.md
+	fi
 fi
 
 # Remove all .git directories from twrpdtout
