@@ -81,6 +81,7 @@ EXTERNAL_TOOLS=(
 	bkerler/oppo_ozip_decrypt
 	bkerler/oppo_decrypt
 	marin-m/vmlinux-to-elf
+	ShivamKumarJha/android_tools
 )
 
 for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
@@ -985,6 +986,14 @@ python3 -m aospdtgen $OUTDIR -o $aospdtout
 
 # Remove all .git directories from aospdtout
 rm -rf $(find $aospdtout -type d -name ".git")
+
+# Regenerate all_files.txt
+find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
+
+# Generate proprietary-files.txt
+printf "Generating proprietary-files.txt...\n"
+bash "${UTILSDIR}"/android_tools/tools/proprietary-files.sh "${OUTDIR}"/all_files.txt >/dev/null
+cp -f "${UTILSDIR}"/android_tools/working/proprietary-files.txt proprietary-files.txt
 
 # Regenerate all_files.txt
 find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
