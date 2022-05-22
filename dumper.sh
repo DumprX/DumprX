@@ -1072,6 +1072,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 		printf "<b>Brand: %s</b>" "${brand}" >| "${OUTDIR}"/tg.html
 		{
 			printf "\n<b>Device: %s</b>" "${codename}"
+			printf "\n<b>Platform: %s</b>" "${platform}"
 			printf "\n<b>Version:</b> %s" "${release}"
 			printf "\n<b>Fingerprint:</b> %s" "${fingerprint}"
 			printf "\n<a href=\"https://github.com/%s/%s/tree/%s/\">Github Tree</a>" "${GIT_ORG}" "${repo}" "${branch}"
@@ -1192,6 +1193,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		printf "<b>Brand: %s</b>" "${brand}" >| "${OUTDIR}"/tg.html
 		{
 			printf "\n<b>Device: %s</b>" "${codename}"
+			printf "\n<b>Platform: %s</b>" "${platform}"
 			printf "\n<b>Version:</b> %s" "${release}"
 			printf "\n<b>Fingerprint:</b> %s" "${fingerprint}"
 			printf "\n<a href=\"${GITLAB_HOST}/%s/%s/-/tree/%s/\">Gitlab Tree</a>" "${GIT_ORG}" "${repo}" "${branch}"
