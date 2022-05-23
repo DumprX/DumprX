@@ -112,7 +112,7 @@ OFP_MTK_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_mtk_decrypt.py
 OPSDECRYPT="${UTILSDIR}"/oppo_decrypt/opscrypto.py
 LPUNPACK="${UTILSDIR}"/lpunpack
 SPLITUAPP="${UTILSDIR}"/splituapp.py
-PACEXTRACTOR="${UTILSDIR}"/pacextractor
+PACEXTRACTOR="${UTILSDIR}"/pacExtractor.sh
 NB0_EXTRACT="${UTILSDIR}"/nb0-extract
 KDZ_EXTRACT="${UTILSDIR}"/kdztools/unkdz.py
 DZ_EXTRACT="${UTILSDIR}"/kdztools/undz.py
@@ -410,7 +410,7 @@ then
 	cd "${PROJECT_DIR}"
 	mkdir -p input/pacextract
 	printf "PAC Archive Detected\nExtracting the PAC Archive...\n"
-	"${PACEXTRACTOR}" -f "${FILEPATH}" -o "${PROJECT_DIR}/input/pacextract" > /dev/null
+	"${PACEXTRACTOR}" "${FILEPATH}" "${PROJECT_DIR}/input/pacextract" >/dev/null
 	rm -rf "${FILEPATH}"
 	bash "${0}" "${PROJECT_DIR}/input/pacextract" || exit 1
 	exit 0
@@ -538,7 +538,7 @@ elif 7z l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${TMPDIR}" 
 	for f in "${TMPDIR}"/*; do detox -r "${f}"; done
 	pac_list=$(find . -type f -name "*.pac" | cut -d'/' -f'2-' | sort)
 	for file in ${pac_list}; do
-		"${PACEXTRACTOR}" -f "${file}"
+		"${PACEXTRACTOR}" "${file}" .
 	done
 	if [[ -f super.img ]]; then
 		superimage_extract || exit 1

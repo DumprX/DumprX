@@ -105,8 +105,8 @@ Credit for those tools goes to everyone whosoever worked hard to put all those p
   - by @LonelyFool
 - splituapp.py (UPDATE.APP extractor, python script)
   - by @superr
-- pacextractor (Spreadtrum .pac file extractor, binary built from source)
-  - by @divinebird, improved by @superr
+- pacextractor (Extractor of SpreadTrum firmware files with extension pac. See)
+  - by @HemanthJabalpuri
 - nb0-extract (Nokia/Sharp/Infocus/Essential nb0-extract, binary built from source)
   - by Heineken @Eddie07 / "FIH mobile"
 - kdztools' unkdz.py and undz.py (LG KDZ and DZ Utilities, python scripts)
