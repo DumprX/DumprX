@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Clear Screen
-tput reset || clear
+tput reset 2>/dev/null || clear
 
 # Unset Every Variables That We Are Gonna Use Later
 unset PROJECT_DIR INPUTDIR UTILSDIR OUTDIR TMPDIR FILEPATH FILE EXTENSION UNZIP_DIR ArcPath \
