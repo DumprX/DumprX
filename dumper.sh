@@ -1097,11 +1097,15 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 
 	# Gitlab Vars
 	GITLAB_TOKEN=$(< "${PROJECT_DIR}"/.gitlab_token)	# Write Your Gitlab Token In a Text File
-	GITLAB_INSTANCE="gitlab.com"
+	if [ -f "${PROJECT_DIR}"/.gitlab_instance ]; then
+		GITLAB_INSTANCE=$(< "${PROJECT_DIR}"/.gitlab_instance)
+	else
+		GITLAB_INSTANCE="gitlab.com"
+	fi
 	GITLAB_HOST="https://${GITLAB_INSTANCE}"
 
 	# Check if already dumped or not
-	[[ ! -z $(curl -sL "https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "system/") ]] && { printf "Firmware already dumped!\nGo to https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}/-/tree/${branch}\n" && exit 1; }  # Add grep to fix gitlab error
+	[[ ! -z $(curl -sL "${GITLAB_HOST}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "system/") ]] && { printf "Firmware already dumped!\nGo to https://"$GITLAB_INSTANCE"/${GIT_ORG}/${repo}/-/tree/${branch}\n" && exit 1; }  # Add grep to fix gitlab error
 
 	# Remove The Journal File Inside System/Vendor
 	find . -mindepth 2 -type d -name "\[SYS\]" -exec rm -rf {} \; 2>/dev/null
@@ -1129,7 +1133,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# Subgroup ID
 	get_gitlab_subgrp_id(){
 		local SUBGRP=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/${GIT_ORG}/subgroups | jq -r .[] | jq -r .path,.id > /tmp/subgrp.txt
+		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "${GITLAB_HOST}/api/v4/groups/${GIT_ORG}/subgroups" | jq -r .[] | jq -r .path,.id > /tmp/subgrp.txt
 		local N_TMP=$(wc -l /tmp/subgrp.txt | cut -d\  -f1)
 		local i
 		for ((i=1; i<=$N_TMP; i++))
@@ -1151,7 +1155,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# Get Project/Repo ID
 	get_gitlab_project_id(){
 		local PROJ="$1"
-		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" https://gitlab.com/api/v4/groups/$2/projects | jq -r .[] | jq -r .path,.id > /tmp/proj.txt
+		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "${GITLAB_HOST}/api/v4/groups/$2/projects" | jq -r .[] | jq -r .path,.id > /tmp/proj.txt
 		local N_TMP=$(wc -l /tmp/proj.txt | cut -d\  -f1)
 		local i
 		for ((i=1; i<=$N_TMP; i++))
@@ -1173,23 +1177,24 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	git commit -asm "Add ${description}"
 
 	# Ensure that the target repo is public
-	curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --url 'https://gitlab.com/api/v4/projects/'"${PROJECT_ID}"'' --data "visibility=public"
+	curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --url ''"${GITLAB_HOST}"'/api/v4/projects/'"${PROJECT_ID}"'' --data "visibility=public"
+	printf "\n"
 
 	# Push the repo to GitLab
-	while [[ -z $(curl -sL "https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "system/") ]]
+	while [[ -z $(curl -sL "${GITLAB_HOST}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "system/") ]]
 	do
-	echo "Pusing to https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git via SSH..."
-	echo "Branch: ${branch}"
-	sleep 1
-	git push -u origin ${branch}
+		printf "\nPushing to %s via SSH...\nBranch:%s\n" "${GITLAB_HOST}/${GIT_ORG}/${repo}.git" "${branch}"
+		sleep 1
+		git push -u origin ${branch}
+		sleep 1
 	done
 
 	# Update the Default Branch
 	curl	--request PUT \
 		--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-		--url https://gitlab.com/api/v4/projects/${PROJECT_ID} \
+		--url ''"${GITLAB_HOST}"'/api/v4/projects/'"${PROJECT_ID}"'' \
 		--data "default_branch=${branch}"
-	echo
+	printf "\n"
 
 	# Telegram channel post
 	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
