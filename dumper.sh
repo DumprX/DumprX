@@ -1171,6 +1171,11 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# NOTE: Your SSH Keys Needs to be Added to your Gitlab Instance
 	git remote add origin git@${GITLAB_INSTANCE}:${GIT_ORG}/${repo}.git
 	git commit -asm "Add ${description}"
+
+	# Ensure that the target repo is public
+	curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --url 'https://gitlab.com/api/v4/projects/'"${PROJECT_ID}"'' --data "visibility=public"
+
+	# Push the repo to GitLab
 	while [[ -z $(curl -sL "https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "system/") ]]
 	do
 	echo "Pusing to https://${GITLAB_INSTANCE}/${GIT_ORG}/${repo}.git via SSH..."
