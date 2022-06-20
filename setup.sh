@@ -22,7 +22,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     PIP=pip
 fi
 
-sudo "$PIP" install backports.lzma extract-dtb protobuf pycrypto docopt zstandard twrpdtgen future requests humanize clint lz4 pycryptodome
+sudo "$PIP" install backports.lzma extract-dtb protobuf==3.20.0 pycrypto docopt zstandard twrpdtgen future requests humanize clint lz4 pycryptodome
 
 # aospdtgen
 $PIP install git+https://github.com/SebaUbuntu/aospdtgen
