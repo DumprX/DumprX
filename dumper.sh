@@ -82,6 +82,7 @@ EXTERNAL_TOOLS=(
 	bkerler/oppo_decrypt
 	marin-m/vmlinux-to-elf
 	ShivamKumarJha/android_tools
+	HemanthJabalpuri/pacextractor
 )
 
 for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
@@ -112,7 +113,7 @@ OFP_MTK_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_mtk_decrypt.py
 OPSDECRYPT="${UTILSDIR}"/oppo_decrypt/opscrypto.py
 LPUNPACK="${UTILSDIR}"/lpunpack
 SPLITUAPP="${UTILSDIR}"/splituapp.py
-PACEXTRACTOR="${UTILSDIR}"/pacExtractor.sh
+PACEXTRACTOR="${UTILSDIR}"/pacextractor/python/pacExtractor.py
 NB0_EXTRACT="${UTILSDIR}"/nb0-extract
 KDZ_EXTRACT="${UTILSDIR}"/kdztools/unkdz.py
 DZ_EXTRACT="${UTILSDIR}"/kdztools/undz.py
@@ -403,18 +404,6 @@ if [[ -f "${FILEPATH}" ]]; then
 	done
 fi
 
-# PAC Archive Check
-if [[ ${EXTENSION} = "pac" ]]
-then
-	cd "${PROJECT_DIR}"
-	mkdir -p input/pacextract
-	printf "PAC Archive Detected\nExtracting the PAC Archive...\n"
-	"${PACEXTRACTOR}" "${FILEPATH}" "${PROJECT_DIR}/input/pacextract" >/dev/null
-	rm -rf "${FILEPATH}"
-	bash "${0}" "${PROJECT_DIR}/input/pacextract" || exit 1
-	exit 0
-fi
-
 # Extract/Put Image/Extra Files In TMPDIR
 if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.new.dat*" -print | wc -l) -ge 1 ]]; then
 	printf "A-only DAT-Formatted OTA detected.\n"
@@ -537,7 +526,7 @@ elif 7z l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${TMPDIR}" 
 	for f in "${TMPDIR}"/*; do detox -r "${f}"; done
 	pac_list=$(find . -type f -name "*.pac" | cut -d'/' -f'2-' | sort)
 	for file in ${pac_list}; do
-		"${PACEXTRACTOR}" "${file}" .
+		python3 "${PACEXTRACTOR}" "${file}" $(pwd)
 	done
 	if [[ -f super.img ]]; then
 		superimage_extract || exit 1
@@ -679,6 +668,14 @@ elif 7z l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(find "${T
 		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
 	fi
 	superimage_extract || exit 1
+fi
+
+# PAC Archive Check
+if [[ "${EXTENSION}" == "pac" ]]; then
+	printf "PAC Archive Detected.\n"
+	python3 ${PACEXTRACTOR} ${FILEPATH} $(pwd)
+	superimage_extract || exit 1
+	exit
 fi
 
 # $(pwd) == "${TMPDIR}"
