@@ -610,16 +610,19 @@ elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>
 	#mv -f "${FILEPATH}" "${TMPDIR}"/
 	[[ -f "${FILEPATH}" ]] && 7z e -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	printf "Extracting Images...\n"
-	for i in ./*.tar.md5; do
+	for i in $(ls *.tar.md5); do
 		tar -xf "${i}" || exit 1
 		rm -fv "${i}" || exit 1
 		printf "Extracted %s\n" "${i}"
 	done
-	for i in *.lz4; do
-		lz4 -dc "${i}" > "${i/.lz4/}" || exit 1
-		rm -fv "${i}" || exit 1
-		printf "Extracted %s\n" "${i}"
-	done
+	[[ $(ls *.lz4 2>/dev/null) ]] && {
+		printf "Extracting lz4 Archives...\n"
+		for f in $(ls *.lz4); do
+			lz4 -dc ${f} > "${f/.lz4/}" || exit 1
+			rm -fv ${f} || exit 1
+			printf "Extracted %s\n" "${f}"
+		done
+	}
 	if [[ -f super.img ]]; then
 		superimage_extract || exit 1	
 	fi
