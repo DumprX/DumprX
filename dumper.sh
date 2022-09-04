@@ -93,9 +93,6 @@ for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
 	fi
 done
 
-# Always Use update_metadata_pb2.py from Android's update_engine Git Repository
-curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
-
 ## See README.md File For Program Credits
 # Set Utility Program Alias
 SDAT2IMG="${UTILSDIR}"/sdat2img.py
