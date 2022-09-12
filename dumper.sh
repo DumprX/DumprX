@@ -93,16 +93,13 @@ for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
 	fi
 done
 
-# Always Use update_metadata_pb2.py from Android's update_engine Git Repository
-curl -sL https://android.googlesource.com/platform/system/update_engine/+/refs/heads/master/scripts/update_payload/update_metadata_pb2.py?format=TEXT | base64 --decode > "${UTILSDIR}"/ota_payload_extractor/update_metadata_pb2.py
-
 ## See README.md File For Program Credits
 # Set Utility Program Alias
 SDAT2IMG="${UTILSDIR}"/sdat2img.py
 SIMG2IMG="${UTILSDIR}"/bin/simg2img
 PACKSPARSEIMG="${UTILSDIR}"/bin/packsparseimg
 UNSIN="${UTILSDIR}"/unsin
-PAYLOAD_EXTRACTOR="${UTILSDIR}"/ota_payload_extractor/extract_android_ota_payload.py
+PAYLOAD_EXTRACTOR="${UTILSDIR}"/bin/payload-dumper-go
 DTB_EXTRACTOR="${UTILSDIR}"/extract-dtb.py
 DTC="${UTILSDIR}"/dtc
 VMLINUX2ELF="${UTILSDIR}"/vmlinux-to-elf/vmlinux-to-elf
@@ -635,9 +632,7 @@ elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>
 	fi
 elif 7z l -ba "${FILEPATH}" | grep -q payload.bin 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "payload.bin" | wc -l) -ge 1 ]]; then
 	printf "AB OTA Payload Detected\n"
-	[[ -f "${FILEPATH}" ]] && 7z e -y "${FILEPATH}" payload.bin 2>/dev/null >> "${TMPDIR}"/zip.log
-	python3 "${PAYLOAD_EXTRACTOR}" payload.bin "${TMPDIR}"
-	rm -f payload.bin
+	${PAYLOAD_EXTRACTOR} -o "${TMPDIR}" "${FILEPATH}"
 elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar" \) | wc -l) -ge 1 ]]; then
 	printf "Rar/Zip/7Zip/Tar Archived Firmware Detected\n"
 	if [[ -f "${FILEPATH}" ]]; then
