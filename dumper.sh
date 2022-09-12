@@ -990,15 +990,76 @@ rm -rf $(find $aospdtout -type d -name ".git")
 # Regenerate all_files.txt
 find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
 
+# Generate Files having the sha1sum values of the Blobs
+function write_sha1sum(){
+	# Usage: write_sha1sum <file> <destination_file>
+
+	local SRC_FILE=$1
+	local DST_FILE=$2
+
+	# Temporary file
+	local TMP_FILE=${SRC_FILE}.sha1sum.tmp
+	
+	# Get rid of all the Blank lines and Comments
+	( cat ${SRC_FILE} | grep -v '^[[:space:]]*$' | grep -v "# " ) > ${TMP_FILE}
+
+	# Amend the sha1sum of blobs in the Destination File
+	cp ${SRC_FILE} ${DST_FILE}
+	cat ${TMP_FILE} | while read -r i; do {
+		local BLOB=${i}
+
+		# Do we have a "-" before the blob's path? If yes, then remove it
+		local BLOB_TOPDIR=$(echo ${BLOB} | cut -d / -f1)
+		[ "${BLOB_TOPDIR:0:1}" = "-" ] && local BLOB=${BLOB_TOPDIR/-/}/${BLOB/${BLOB_TOPDIR}\//}
+
+		# Is it a non- /vendor blob?
+		[ ! -e "${BLOB}" ] && {
+			# for system libs, bins etc.
+			if [ -e "system/${BLOB}" ]; then
+				local BLOB="system/${BLOB}"
+			# for system-as-root system libs, bins etc.
+			elif [ -e "system/system/${BLOB}" ]; then
+				local BLOB="system/system/${BLOB}"
+			fi
+		}
+		local SHA1=$(sha1sum ${BLOB} | gawk '{print $1}')
+
+		local BLOB=${i} # Switch back to the Original Blob's name
+		local ORG_EXP="${BLOB}"
+		local FINAL_EXP="${BLOB}|${SHA1}"
+
+		# Amend the |sha1sum
+		sed -i "s:${ORG_EXP}:${FINAL_EXP}:g" "${DST_FILE}"
+	}; done
+
+	# Delete the Temporary file
+	rm ${TMP_FILE}
+}
+
 # Generate proprietary-files.txt
 printf "Generating proprietary-files.txt...\n"
 bash "${UTILSDIR}"/android_tools/tools/proprietary-files.sh "${OUTDIR}"/all_files.txt >/dev/null
-printf "All blobs from %s, unless pinned\n" "${description}" > "${OUTDIR}"/proprietary-files.txt
+printf "# All blobs from %s, unless pinned\n" "${description}" > "${OUTDIR}"/proprietary-files.txt
 cat "${UTILSDIR}"/android_tools/working/proprietary-files.txt >> "${OUTDIR}"/proprietary-files.txt
-git -C "${UTILSDIR}"/android_tools/working add --all
-git -C "${UTILSDIR}"/android_tools/working stash
+
+# Generate proprietary-files.sha1
+printf "Generating proprietary-files.sha1...\n"
+printf "# All blobs are from \"%s\" and are pinned with sha1sum values\n" "${description}" > "${OUTDIR}"/proprietary-files.sha1
+write_sha1sum ${UTILSDIR}/android_tools/working/proprietary-files.{txt,sha1}
+cat "${UTILSDIR}"/android_tools/working/proprietary-files.sha1 >> "${OUTDIR}"/proprietary-files.sha1
+
+# Stash the changes done at ${UTILSDIR}/android_tools
+git -C "${UTILSDIR}"/android_tools/ add --all
+git -C "${UTILSDIR}"/android_tools/ stash
+
+# Generate all_files.sha1
+printf "Generating all_files.sha1...\n"
+write_sha1sum "$OUTDIR"/all_files.{txt,sha1.tmp}
+( cat "$OUTDIR"/all_files.sha1.tmp | grep -v all_files.txt ) > "$OUTDIR"/all_files.sha1		# all_files.txt will be regenerated
+rm -rf "$OUTDIR"/all_files.sha1.tmp
 
 # Regenerate all_files.txt
+printf "Generating all_files.txt...\n"
 find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
 
 rm -rf "${TMPDIR}" 2>/dev/null
