@@ -327,6 +327,7 @@ fi
 # Xiaomi .tgz Check
 if [[ "${FILE##*.}" == "tgz" || "${FILE#*.}" == "tar.gz" ]]; then
 	printf "Xiaomi gzipped tar archive found.\n"
+	mkdir -p "${INPUTDIR}" 2>/dev/null
 	if [[ -f "${INPUTDIR}"/"${FILE}" ]]; then
 		tar xzvf "${INPUTDIR}"/"${FILE}" -C "${INPUTDIR}"/ --transform='s/.*\///'
 		rm -rf -- "${INPUTDIR:?}"/"${FILE}"
@@ -992,7 +993,10 @@ find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_f
 # Generate proprietary-files.txt
 printf "Generating proprietary-files.txt...\n"
 bash "${UTILSDIR}"/android_tools/tools/proprietary-files.sh "${OUTDIR}"/all_files.txt >/dev/null
-cp -f "${UTILSDIR}"/android_tools/working/proprietary-files.txt proprietary-files.txt
+printf "All blobs from %s, unless pinned\n" "${description}" > "${OUTDIR}"/proprietary-files.txt
+cat "${UTILSDIR}"/android_tools/working/proprietary-files.txt >> "${OUTDIR}"/proprietary-files.txt
+git -C "${UTILSDIR}"/android_tools/working add --all
+git -C "${UTILSDIR}"/android_tools/working stash
 
 # Regenerate all_files.txt
 find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_files.txt
