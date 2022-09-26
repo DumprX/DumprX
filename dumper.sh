@@ -118,6 +118,9 @@ RUUDECRYPT="${UTILSDIR}"/RUU_Decrypt_Tool
 EXTRACT_IKCONFIG="${UTILSDIR}"/extract-ikconfig
 UNPACKBOOT="${UTILSDIR}"/unpackboot.sh
 AML_EXTRACT="${UTILSDIR}"/aml-upgrade-package-extract
+AFPTOOL_EXTRACT="${UTILSDIR}"/bin/afptool
+RK_EXTRACT="${UTILSDIR}"/bin/rkImageMaker
+
 # Set Names of Downloader Utility Programs
 MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
@@ -667,6 +670,20 @@ elif 7z l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(find "${T
 		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
 	fi
 	superimage_extract || exit 1
+elif 7z l -ba "${FILEPATH}" | grep -q "rockchip" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "rockchip") ]]; then
+	printf "Rockchip Detected\n"
+	${RK_EXTRACT} -unpack "${FILEPATH}" ${TMPDIR}
+	${AFPTOOL_EXTRACT} -unpack ${TMPDIR}/firmware.img ${TMPDIR}
+	[ -f ${TMPDIR}/Image/super.img ] && {
+		mv ${TMPDIR}/Image/super.img ${TMPDIR}/super.img
+		cd ${TMPDIR}
+		superimage_extract || exit 1
+		cd -
+	}
+	for partition in $PARTITIONS; do
+		[[ -e "${TMPDIR}/Image/${partition}.img" ]] && mv "${TMPDIR}/Image/${partition}.img" "${OUTDIR}/${partition}.img"
+		[[ -e "${TMPDIR}/${partition}.img" ]] && mv "${TMPDIR}/${partition}.img" "${OUTDIR}/${partition}.img"
+	done
 fi
 
 # PAC Archive Check
