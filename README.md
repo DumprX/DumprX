@@ -1,11 +1,6 @@
-<div align="center">
+<img src="https://hacktoberfest.com/_next/static/media/opengraph.da6e44c0.png">
 
-  <h1>DumprX</h1>
-
-  <h4>Based Upon Phoenix Firmware Dumper from DroidDumps, with some Changes and Improvements</h4>
-
-</div>
-
+# <div align=center> DumprX </div>
 
 ## What this really is
 
