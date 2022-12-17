@@ -630,11 +630,11 @@ elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>
 			printf "Extracted %s\n" "${f}"
 		done
 	}
+	for samsung_ext4_img_files in $(find -maxdepth 1 -type f -name \*.ext4 -printf '%P\n'); do
+		mv -v $samsung_ext4_img_files "${samsung_ext4_img_files%%.ext4}"
+	done
 	if [[ -f super.img ]]; then
 		superimage_extract || exit 1	
-	fi
-	if [[ -f system.img.ext4 ]]; then
-		find "${TMPDIR}" -maxdepth 1 -type f -name "*.img.ext4" | rename 's/.img.ext4/.img/g' > /dev/null 2>&1
 	fi
 	if [[ ! -f system.img ]]; then
 		printf "Extract failed\n"
