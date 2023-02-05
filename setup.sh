@@ -67,7 +67,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
 	    sleep 1
 
         sudo pacman -Syyu --needed --noconfirm 2>&1 | grep -v "warning: could not get file information" || abort "Setup Failed!"
-        sudo pacman -Sy --noconfirm unace unrar zip unzip p7zip sharutils uudeview arj cabextract file-roller dtc brotli axel gawk aria2 detox cpio lz4 jq || abort "Setup Failed!"
+        sudo pacman -Sy --noconfirm unace unrar p7zip sharutils uudeview arj cabextract file-roller dtc brotli axel gawk aria2 detox cpio lz4 jq || abort "Setup Failed!"
 
         # Python
         sleep 1
