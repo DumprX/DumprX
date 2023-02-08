@@ -1214,9 +1214,8 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	get_gitlab_subgrp_id(){
 		local SUBGRP=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "${GITLAB_HOST}/api/v4/groups/${GIT_ORG}/subgroups" | jq -r .[] | jq -r .path,.id > /tmp/subgrp.txt
-		local N_TMP=$(wc -l /tmp/subgrp.txt | cut -d\  -f1)
 		local i
-		for ((i=1; i<=$N_TMP; i++))
+		for i in $(seq "$(cat /tmp/subgrp.txt | wc -l)")
 		do
 			local TMP_I=$(cat /tmp/subgrp.txt | head -"$i" | tail -1)
 			[[ "$TMP_I" == "$SUBGRP" ]] && cat /tmp/subgrp.txt | head -$(("$i"+1)) | tail -1 > "$2"
@@ -1236,9 +1235,8 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	get_gitlab_project_id(){
 		local PROJ="$1"
 		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "${GITLAB_HOST}/api/v4/groups/$2/projects" | jq -r .[] | jq -r .path,.id > /tmp/proj.txt
-		local N_TMP=$(wc -l /tmp/proj.txt | cut -d\  -f1)
 		local i
-		for ((i=1; i<=$N_TMP; i++))
+		for i in $(seq "$(cat /tmp/proj.txt | wc -l)")
 		do
 			local TMP_I=$(cat /tmp/proj.txt | head -"$i" | tail -1)
 			[[ "$TMP_I" == "$PROJ" ]] && cat /tmp/proj.txt | head -$(("$i"+1)) | tail -1 > "$3"
