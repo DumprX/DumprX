@@ -120,6 +120,7 @@ UNPACKBOOT="${UTILSDIR}"/unpackboot.sh
 AML_EXTRACT="${UTILSDIR}"/aml-upgrade-package-extract
 AFPTOOL_EXTRACT="${UTILSDIR}"/bin/afptool
 RK_EXTRACT="${UTILSDIR}"/bin/rkImageMaker
+TRANSFER="${UTILSDIR}"/bin/transfer
 
 # Set Names of Downloader Utility Programs
 MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
@@ -161,6 +162,8 @@ else
 			( "${MEGAMEDIADRIVE_DL}" "${URL}" ) || exit 1
 		elif echo "${URL}" | grep -q "androidfilehost.com"; then
 			( python3 "${AFHDL}" -l "${URL}" ) || exit 1
+		elif echo "${URL}" | grep -q "/we.tl/"; then
+			( "${TRANSFER}" "${URL}" ) || exit 1
 		else
 			if echo "${URL}" | grep -q "1drv.ms"; then URL=${URL/ms/ws}; fi
 			aria2c -x16 -s8 --console-log-level=warn --summary-interval=0 --check-certificate=false "${URL}" || {
