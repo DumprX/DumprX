@@ -73,13 +73,8 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
         sleep 1
         echo -e ${BLUE}">> Creating Required Python3 Symlinks..."${NORMAL}
         sleep 1
-        sudo ln -sf /usr/bin/pip3.10 /usr/bin/pip3
-        sudo ln -sf /usr/bin/pip3.10 /usr/bin/pip
-        sudo ln -sf /usr/bin/python3.10 /usr/bin/python3
-        sudo ln -sf /usr/bin/python3.10 /usr/bin/python
 
     fi
-    PIP=pip3
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then
 
@@ -88,16 +83,15 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 	echo -e ${BLUE}">> Installing Required Packages..."${NORMAL}
 	sleep 1
     brew install protobuf xz brotli lz4 aria2 detox coreutils p7zip gawk || abort "Setup Failed!"
-    PIP=pip
 
 fi
 
 sleep 1
 echo -e ${PURPLE}"Distro Specific Setup Done, Now Installing pyhton Packages from pip..."${NORMAL}
 sleep 1
-sudo "$PIP" install backports.lzma extract-dtb protobuf==3.20.0 pycrypto docopt zstandard twrpdtgen future requests humanize clint lz4 pycryptodome pycryptodomex || abort "Setup Failed!"
+sudo pip install backports.lzma extract-dtb protobuf==3.20.0 pycrypto docopt zstandard twrpdtgen future requests humanize clint lz4 pycryptodome pycryptodomex || abort "Setup Failed!"
 sleep 1
-$PIP install git+https://github.com/sebaubuntu-python/aospdtgen || abort "Setup Failed!"
+pip install git+https://github.com/sebaubuntu-python/aospdtgen || abort "Setup Failed!"
 
 # Done!
 echo -e ${GREEN}"Setup Complete!"${NORMAL}
