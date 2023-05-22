@@ -763,6 +763,10 @@ if [[ -f "${OUTDIR}"/boot.img ]]; then
 	fi
 	python3 "${VMLINUX2ELF}" "${OUTDIR}"/boot.img "${OUTDIR}"/bootRE/boot.elf >/dev/null 2>&1
 	printf "boot.elf generated\n"
+	[[ -f "${OUTDIR}"/boot/dtb.img ]] && {
+		mkdir -p "${OUTDIR}"/dtbimg 2>/dev/null
+		python3 "${DTB_EXTRACTOR}" "${OUTDIR}"/boot/dtb.img -o "${OUTDIR}"/dtbimg >/dev/null
+	}
 fi
 
 # Extract vendor_boot.img
@@ -778,6 +782,10 @@ if [[ -f "${OUTDIR}"/vendor_boot.img ]]; then
 	# vmlinux-to-elf
 	python3 "${VMLINUX2ELF}" "${OUTDIR}"/vendor_boot.img "${OUTDIR}"/vendor_bootRE/vendor_boot.elf >/dev/null 2>&1
 	printf "vendor_boot.elf generated\n"
+	[[ -f "${OUTDIR}"/vendor_boot/dtb.img ]] && {
+		mkdir -p "${OUTDIR}"/vendor_dtbimg 2>/dev/null
+		python3 "${DTB_EXTRACTOR}" "${OUTDIR}"/vendor_boot/dtb.img -o "${OUTDIR}"/vendor_dtbimg >/dev/null
+	}
 fi
 
 # Extract recovery.img
