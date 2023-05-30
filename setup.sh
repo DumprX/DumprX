@@ -89,7 +89,7 @@ fi
 sleep 1
 echo -e ${PURPLE}"Distro Specific Setup Done, Now Installing pyhton Packages from pip..."${NORMAL}
 sleep 1
-sudo pip install backports.lzma extract-dtb protobuf==3.20.0 pycrypto docopt zstandard twrpdtgen future requests humanize clint lz4 pycryptodome pycryptodomex || abort "Setup Failed!"
+sudo pip install backports.lzma extract-dtb protobuf==3.20.0 pycryptodome docopt zstandard twrpdtgen future requests humanize clint lz4 pycryptodome pycryptodomex || abort "Setup Failed!"
 sleep 1
 pip install git+https://github.com/sebaubuntu-python/aospdtgen || abort "Setup Failed!"
 
