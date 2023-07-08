@@ -2,6 +2,7 @@
 .github_orgname
 .tg_token
 .tg_chat
+.venv/
 input/
 tmp/
 out/
