@@ -1138,31 +1138,31 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
 	[[ ! -s .gitignore ]] && rm .gitignore
-	git add --all
 	if [[ "${GIT_ORG}" == "${GIT_USER}" ]]; then
 		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{"name": "'"${repo}"'", "description": "'"${description}"'"}' "https://api.github.com/user/repos" >/dev/null 2>&1
 	else
 		curl -s -X POST -H "Authorization: token ${GITHUB_TOKEN}" -d '{ "name": "'"${repo}"'", "description": "'"${description}"'"}' "https://api.github.com/orgs/${GIT_ORG}/repos" >/dev/null 2>&1
 	fi
 	curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.mercy-preview+json" -d '{ "names": ["'"${platform}"'","'"${manufacturer}"'","'"${top_codename}"'","firmware","dump"]}' "https://api.github.com/repos/${GIT_ORG}/${repo}/topics" 	# Update Repository Topics
-	git remote add origin https://github.com/${GIT_ORG}/${repo}.git
-	git commit -asm "Add ${description}"
-	{ [[ $(du -bs .) -lt 1288490188 ]] && git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"; } || (
-		git update-ref -d HEAD
-		git reset system/ vendor/
-		git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
-		git commit -asm "Add extras for ${description}"
-		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
-		git add vendor/
-		git commit -asm "Add vendor for ${description}"
-		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
-		git add system/system/app/ system/system/priv-app/ || git add system/app/ system/priv-app/
-		git commit -asm "Add apps for ${description}"
-		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
-		git add system/
-		git commit -asm "Add system for ${description}"
-		git push https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
-	)
+	
+	# Commit and Push
+	printf "\nPushing to %s via HTTPS...\nBranch:%s\n" "https://github.com/${GIT_ORG}/${repo}.git" "${branch}"
+	sleep 1
+	git remote add origin https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
+	git add -- . ':!system/' ':!vendor/'
+	git commit -sm "Add extras for ${description}"
+	git push -u origin "${branch}"
+	git add vendor/
+	git commit -sm "Add vendor for ${description}"
+	git push -u origin "${branch}"
+	git add $(find -type f -name '*.apk')
+	git commit -sm "Add apps for ${description}"
+	git push -u origin "${branch}"
+	git add system/
+	git commit -sm "Add system for ${description}"
+	git push -u origin "${branch}"
+	sleep 1
+	
 	# Telegram channel post
 	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
 		TG_TOKEN=$(< "${PROJECT_DIR}"/.tg_token)
@@ -1218,7 +1218,6 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	[[ ! -s .gitignore ]] && rm .gitignore
 	[[ -z "$(git config --get user.email)" ]] && git config user.email "guptasushrut@gmail.com"
 	[[ -z "$(git config --get user.name)" ]] && git config user.name "Sushrut1101"
-	git add --all
 
 	# Create Subgroup
 	GRP_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${GITLAB_HOST}/api/v4/groups/${GIT_ORG}" | jq -r '.id')
@@ -1271,18 +1270,28 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# Pushing via HTTPS doesn't work on GitLab for Large Repos (it's an issue with gitlab for large repos)
 	# NOTE: Your SSH Keys Needs to be Added to your Gitlab Instance
 	git remote add origin git@${GITLAB_INSTANCE}:${GIT_ORG}/${repo}.git
-	git commit -asm "Add ${description}"
 
 	# Ensure that the target repo is public
 	curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --url ''"${GITLAB_HOST}"'/api/v4/projects/'"${PROJECT_ID}"'' --data "visibility=public"
 	printf "\n"
 
-	# Push the repo to GitLab
+	# Push to GitLab
 	while [[ ! $(curl -sL "${GITLAB_HOST}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "all_files.txt") ]]
 	do
 		printf "\nPushing to %s via SSH...\nBranch:%s\n" "${GITLAB_HOST}/${GIT_ORG}/${repo}.git" "${branch}"
 		sleep 1
-		git push -u origin ${branch}
+		git add -- . ':!system/' ':!vendor/'
+		git commit -sm "Add extras for ${description}"
+		git push -u origin "${branch}"
+		git add vendor/
+		git commit -sm "Add vendor for ${description}"
+		git push -u origin "${branch}"
+		git add $(find -type f -name '*.apk')
+		git commit -sm "Add apps for ${description}"
+		git push -u origin "${branch}"
+		git add system/
+		git commit -sm "Add system for ${description}"
+		git push -u origin "${branch}"
 		sleep 1
 	done
 
