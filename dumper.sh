@@ -135,7 +135,7 @@ FSCK_EROFS=${UTILSDIR}/bin/fsck.erofs
 # Partition List That Are Currently Supported
 PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo dtb boot vendor_boot recovery tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap my_custom my_manifest my_carrier my_region my_bigball my_version special_preload system_dlkm vendor_dlkm odm_dlkm init_boot vendor_kernel_boot odmko socko nt_log mi_ext"
 EXT4PARTITIONS="system vendor cust odm oem factory product xrom systemex oppo_product preload_common"
-OTHERPARTITIONS="tz.mbn:tz tz.img:tz modem.img:modem NON-HLOS:modem boot-verified.img:boot recovery-verified.img:recovery dtbo-verified.img:dtbo"
+OTHERPARTITIONS="tz.mbn:tz tz.img:tz modem.img:modem md1img.img:modem NON-HLOS:modem boot-verified.img:boot recovery-verified.img:recovery dtbo-verified.img:dtbo"
 
 # NOTE: $(pwd) is ${PROJECT_DIR}
 if echo "${1}" | grep -q "${PROJECT_DIR}/input" && [[ $(find "${INPUTDIR}" -maxdepth 1 -type f -size +10M -print | wc -l) -gt 1 ]]; then
