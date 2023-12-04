@@ -87,7 +87,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 sleep 1
-echo -e ${PURPLE}"Distro Specific Setup Done, Now Installing pyhton Packages from pip..."${NORMAL}
+echo -e ${PURPLE}"Distro Specific Setup Done, Now Installing python Packages from pip..."${NORMAL}
 sleep 1
 python3 -m venv .venv
 [ -e ".venv" ] && source .venv/bin/activate
