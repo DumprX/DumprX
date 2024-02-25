@@ -834,6 +834,8 @@ for p in $PARTITIONS; do
 						sudo umount "${p}"
 						sudo cp -rf "${p}_/"* "${p}"
 						sudo rm -rf "${p}_"
+						sudo chown -R "$(whoami)" "${p}"/*
+						chmod -R u+rwX "${p}"/*
 						if [ $? -eq 0 ]; then
 							rm -fv "$p".img > /dev/null 2>&1
 						else
