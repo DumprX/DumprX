@@ -1151,7 +1151,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	sleep 1
 	git remote add origin https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
 	git lfs install
-	find . -type f -size +100M -exec git lfs track {} \;
+	[ -e ".gitattributes" ] || find . -type f -size +100M -exec git lfs track {} \;
 	[ -e ".gitattributes" ] && {
 		git add ".gitattributes"
 		git commit -sm "Setup Git LFS"
@@ -1289,7 +1289,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 		printf "\nPushing to %s via SSH...\nBranch:%s\n" "${GITLAB_HOST}/${GIT_ORG}/${repo}.git" "${branch}"
 		sleep 1
 		git lfs install
-		find . -type f -size +100M -exec git lfs track {} \;
+		[ -e ".gitattributes" ] || find . -type f -size +100M -exec git lfs track {} \;
 		[ -e ".gitattributes" ] && {
 			git add ".gitattributes"
 			git commit -sm "Setup Git LFS"
