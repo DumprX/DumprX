@@ -94,7 +94,9 @@ for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
 done
 
 # Activate virtual environment
-[ -e ".venv" ] && source .venv/bin/activate
+[[ "${USE_VENV}" == "false" || "${USE_VENV}" == "0" ]] || {
+	[ -e ".venv" ] && source .venv/bin/activate
+}
 
 ## See README.md File For Program Credits
 # Set Utility Program Alias
