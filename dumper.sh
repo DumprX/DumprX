@@ -1047,7 +1047,7 @@ function write_sha1sum(){
 	# Get rid of all the Blank lines and Comments
 	( cat ${SRC_FILE} | grep -v '^[[:space:]]*$' | grep -v "# " ) > ${TMP_FILE}
 
-	# Amend the sha1sum of blobs in the Destination File
+	# Append the sha1sum of blobs in the Destination File
 	cp ${SRC_FILE} ${DST_FILE}
 	cat ${TMP_FILE} | while read -r i; do {
 		local BLOB=${i}
@@ -1072,8 +1072,8 @@ function write_sha1sum(){
 		local ORG_EXP="${BLOB}"
 		local FINAL_EXP="${BLOB}|${SHA1}"
 
-		# Amend the |sha1sum
-		sed -i "s:${ORG_EXP}:${FINAL_EXP}:g" "${DST_FILE}"
+		# Append the |sha1sum
+		sed -i "s:${ORG_EXP}$:${FINAL_EXP}:g" "${DST_FILE}"
 	}; done
 
 	# Delete the Temporary file
