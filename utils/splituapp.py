@@ -74,13 +74,27 @@ def extract(source, flist):
 				chunk = 10240
 
 				try:
-					with open(outdir+os.sep+filename+'.img', 'wb') as o:
-						while filesize > 0:
-							if chunk > filesize:
-								chunk = filesize
+					if os.path.exists(outdir+os.sep+filename + ".img"):
+						i = 1
+						while os.path.exists(outdir+os.sep+filename+'_'+str(i)+'.img'):
+							i += 1
 
-							o.write(f.read(chunk))
-							filesize -= chunk
+						with open(outdir+os.sep+filename+'_'+str(i)+'.img', 'wb') as o:
+							while filesize > 0:
+					 		if chunk > filesize:
+					 			chunk = filesize
+
+					 		o.write(f.read(chunk))
+					 		filesize -= chunk
+
+					else:
+						with open(outdir+os.sep+filename+'.img', 'ab') as o:
+							while filesize > 0:
+					 		if chunk > filesize:
+					 			chunk = filesize
+
+					 		o.write(f.read(chunk))
+					 		filesize -= chunk
 				except:
 					print('ERROR: Failed to create '+filename+'.img\n')
 					return 1
