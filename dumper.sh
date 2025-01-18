@@ -822,7 +822,7 @@ for p in $PARTITIONS; do
 		if [[ -e "$p.img" ]]; then
 			mkdir "$p" 2> /dev/null || rm -rf "${p:?}"/*
 			echo "Extracting $p partition..."
-			${BIN_7ZZ} x "$p".img -y -o"$p"/ > /dev/null 2>&1
+			${BIN_7ZZ} x -snld "$p".img -y -o"$p"/ > /dev/null 2>&1
 			if [ $? -eq 0 ]; then
 				rm "$p".img > /dev/null 2>&1
 			else
