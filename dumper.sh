@@ -1114,6 +1114,45 @@ find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_f
 
 rm -rf "${TMPDIR}" 2>/dev/null
 
+commit_and_push(){
+	local DIRS=(
+		"system_ext"
+		"product"
+		"system_dlkm"
+		"odm"
+		"odm_dlkm"
+		"vendor_dlkm"
+		"vendor"
+		"system"
+	)
+
+	git lfs install
+	[ -e ".gitattributes" ] || find . -type f -not -path ".git/*" -size +100M -exec git lfs track {} \;
+	[ -e ".gitattributes" ] && {
+		git add ".gitattributes"
+		git commit -sm "Setup Git LFS"
+		git push -u origin "${branch}"
+	}
+
+	git add $(find -type f -name '*.apk')
+	git commit -sm "Add apps for ${description}"
+	git push -u origin "${branch}"
+
+	for i in "${DIRS[@]}"; do
+		[ -d "${i}" ] && git add "${i}"
+		[ -d system/"${i}" ] && git add system/"${i}"
+		[ -d system/system/"${i}" ] && git add system/system/"${i}"
+		[ -d vendor/"${i}" ] && git add vendor/"${i}"
+
+		git commit -sm "Add ${i} for ${description}"
+		git push -u origin "${branch}"
+	done
+
+	git add .
+	git commit -sm "Add extras for ${description}"
+	git push -u origin "${branch}"
+}
+
 if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	GITHUB_TOKEN=$(< "${PROJECT_DIR}"/.github_token)	# Write Your Github Token In a Text File
 	[[ -z "$(git config --get user.email)" ]] && git config user.email "guptasushrut@gmail.com"
@@ -1160,25 +1199,7 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	printf "\nPushing to %s via HTTPS...\nBranch:%s\n" "https://github.com/${GIT_ORG}/${repo}.git" "${branch}"
 	sleep 1
 	git remote add origin https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git "${branch}"
-	git lfs install
-	[ -e ".gitattributes" ] || find . -type f -not -path ".git/*" -size +100M -exec git lfs track {} \;
-	[ -e ".gitattributes" ] && {
-		git add ".gitattributes"
-		git commit -sm "Setup Git LFS"
-		git push -u origin "${branch}"
-	}
-	git add -- . ':!system/' ':!vendor/'
-	git commit -sm "Add extras for ${description}"
-	git push -u origin "${branch}"
-	git add vendor/
-	git commit -sm "Add vendor for ${description}"
-	git push -u origin "${branch}"
-	git add $(find -type f -name '*.apk')
-	git commit -sm "Add apps for ${description}"
-	git push -u origin "${branch}"
-	git add system/
-	git commit -sm "Add system for ${description}"
-	git push -u origin "${branch}"
+	commit_and_push
 	sleep 1
 	
 	# Telegram channel post
@@ -1298,25 +1319,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	do
 		printf "\nPushing to %s via SSH...\nBranch:%s\n" "${GITLAB_HOST}/${GIT_ORG}/${repo}.git" "${branch}"
 		sleep 1
-		git lfs install
-		[ -e ".gitattributes" ] || find . -type f -not -path ".git/*" -size +100M -exec git lfs track {} \;
-		[ -e ".gitattributes" ] && {
-			git add ".gitattributes"
-			git commit -sm "Setup Git LFS"
-			git push -u origin "${branch}"
-		}
-		git add -- . ':!system/' ':!vendor/'
-		git commit -sm "Add extras for ${description}"
-		git push -u origin "${branch}"
-		git add vendor/
-		git commit -sm "Add vendor for ${description}"
-		git push -u origin "${branch}"
-		git add $(find -type f -name '*.apk')
-		git commit -sm "Add apps for ${description}"
-		git push -u origin "${branch}"
-		git add system/
-		git commit -sm "Add system for ${description}"
-		git push -u origin "${branch}"
+		commit_and_push
 		sleep 1
 	done
 
