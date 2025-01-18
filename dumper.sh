@@ -127,6 +127,12 @@ AFPTOOL_EXTRACT="${UTILSDIR}"/bin/afptool
 RK_EXTRACT="${UTILSDIR}"/bin/rkImageMaker
 TRANSFER="${UTILSDIR}"/bin/transfer
 
+if ! command -v 7zz > /dev/null 2>&1; then
+	BIN_7ZZ="${UTILSDIR}"/bin/7zz
+else
+	BIN_7ZZ=7zz
+fi
+
 # Set Names of Downloader Utility Programs
 MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
 AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
@@ -244,8 +250,8 @@ function superimage_extract() {
         if [ -f "$partition"_a.img ]; then
             mv "$partition"_a.img "$partition".img
         else
-            foundpartitions=$(7z l -ba "${FILEPATH}" | rev | gawk '{ print $1 }' | rev | grep $partition.img)
-            7z e -y "${FILEPATH}" $foundpartitions dummypartition 2>/dev/null >> $TMPDIR/zip.log
+            foundpartitions=$(${BIN_7ZZ} l -ba "${FILEPATH}" | rev | gawk '{ print $1 }' | rev | grep $partition.img)
+            ${BIN_7ZZ} e -y "${FILEPATH}" $foundpartitions dummypartition 2>/dev/null >> $TMPDIR/zip.log
         fi
     done
     rm -rf super.img.raw
@@ -274,10 +280,10 @@ if [[ $(head -c12 "${FILEPATH}" 2>/dev/null | tr -d '\0') == "OPPOENCRYPT!" ]] |
 	exit
 fi
 # Oneplus .ops Check
-if 7z l -ba "${FILEPATH}" | grep -q ".*.ops" 2>/dev/null; then
+if ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q ".*.ops" 2>/dev/null; then
 	printf "Oppo/Oneplus ops Firmware Detected Extracting...\n"
-	foundops=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ops")
-	7z e -y -- "${FILEPATH}" "${foundops}" */"${foundops}" 2>/dev/null >> "${TMPDIR}"/zip.log
+	foundops=$(${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ops")
+	${BIN_7ZZ} e -y -- "${FILEPATH}" "${foundops}" */"${foundops}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	mv "$(echo "${foundops}" | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
 	sleep 1s
@@ -301,10 +307,10 @@ if [[ "${EXTENSION}" == "ops" ]]; then
 	exit
 fi
 # Oppo .ofp Check
-if 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q ".*.ofp" 2>/dev/null; then
+if ${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q ".*.ofp" 2>/dev/null; then
 	printf "Oppo ofp Detected.\n"
-	foundofp=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ofp")
-	7z e -y -- "${FILEPATH}" "${foundofp}" */"${foundofp}" 2>/dev/null >> "${TMPDIR}"/zip.log
+	foundofp=$(${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep ".*.ofp")
+	${BIN_7ZZ} e -y -- "${FILEPATH}" "${foundofp}" */"${foundofp}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
 	mv "$(echo "${foundofp}" | gawk -F['/'] '{print $NF}')" "${INPUTDIR}"/
 	sleep 1s
@@ -379,11 +385,11 @@ if echo "${FILEPATH}" | grep -i "^ruu_" | grep -q -i "exe$" || [[ "${EXTENSION}"
 fi
 
 # Amlogic upgrade package (AML) Check
-if [[ $(7z l -ba "${FILEPATH}" | grep -i aml) ]]; then
+if [[ $(${BIN_7ZZ} l -ba "${FILEPATH}" | grep -i aml) ]]; then
 	echo "AML Detected"
 	cp "${FILEPATH}" ${TMPDIR}
 	FILE="${TMPDIR}/$(basename ${FILEPATH})"
-	7z e -y "${FILEPATH}" >> ${TMPDIR}/zip.log
+	${BIN_7ZZ} e -y "${FILEPATH}" >> ${TMPDIR}/zip.log
 	"${AML_EXTRACT}" $(find . -type f -name "*aml*.img")
 	rename 's/.PARTITION$/.img/' *.PARTITION
 	rename 's/_aml_dtb.img$/dtb.img/' *.img
@@ -401,10 +407,10 @@ fi
 if [[ -f "${FILEPATH}" ]]; then
 	for otherpartition in ${OTHERPARTITIONS}; do
 		filename=${otherpartition%:*} && outname=${otherpartition#*:}
-		if 7z l -ba "${FILEPATH}" | grep -q "${filename}"; then
+		if ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "${filename}"; then
 			printf "%s Detected For %s\n" "${filename}" "${outname}"
-			foundfile=$(7z l -ba "${FILEPATH}" | grep "${filename}" | awk '{print $NF}')
-			7z e -y -- "${FILEPATH}" "${foundfile}" */"${foundfile}" 2>/dev/null >> "${TMPDIR}"/zip.log
+			foundfile=$(${BIN_7ZZ} l -ba "${FILEPATH}" | grep "${filename}" | awk '{print $NF}')
+			${BIN_7ZZ} e -y -- "${FILEPATH}" "${foundfile}" */"${foundfile}" 2>/dev/null >> "${TMPDIR}"/zip.log
 			output=$(ls -- "${filename}"* 2>/dev/null)
 			[[ ! -e "${TMPDIR}"/"${outname}".img ]] && mv "${output}" "${TMPDIR}"/"${outname}".img
 			"${SIMG2IMG}" "${TMPDIR}"/"${outname}".img "${OUTDIR}"/"${outname}".img 2>/dev/null
@@ -414,11 +420,11 @@ if [[ -f "${FILEPATH}" ]]; then
 fi
 
 # Extract/Put Image/Extra Files In TMPDIR
-if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.new.dat*" -print | wc -l) -ge 1 ]]; then
+if ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.new.dat*" -print | wc -l) -ge 1 ]]; then
 	printf "A-only DAT-Formatted OTA detected.\n"
 	for partition in $PARTITIONS; do
-		7z e -y "${FILEPATH}" ${partition}.new.dat* ${partition}.transfer.list ${partition}.img 2>/dev/null >> ${TMPDIR}/zip.log
-		7z e -y "${FILEPATH}" ${partition}.*.new.dat* ${partition}.*.transfer.list ${partition}.*.img 2>/dev/null >> ${TMPDIR}/zip.log
+		${BIN_7ZZ} e -y "${FILEPATH}" ${partition}.new.dat* ${partition}.transfer.list ${partition}.img 2>/dev/null >> ${TMPDIR}/zip.log
+		${BIN_7ZZ} e -y "${FILEPATH}" ${partition}.*.new.dat* ${partition}.*.transfer.list ${partition}.*.img 2>/dev/null >> ${TMPDIR}/zip.log
 		rename 's/(\w+)\.(\d+)\.(\w+)/$1.$3/' *
 		# For Oplus A-only OTAs, eg OnePlus Nord 2. Regex matches the 8 digits of Oplus NV ID (prop ro.build.oplus_nv_id) to remove them.
 		# hello@world:~/test_regex# rename -n 's/(\w+)\.(\d+)\.(\w+)/$1.$3/' *
@@ -432,7 +438,7 @@ if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "$
 		ls | grep "\.new\.dat" | while read i; do
 			line=$(echo "$i" | cut -d"." -f1)
 			if [[ $(echo "$i" | grep "\.dat\.xz") ]]; then
-				7z e -y "$i" 2>/dev/null >> ${TMPDIR}/zip.log
+				${BIN_7ZZ} e -y "$i" 2>/dev/null >> ${TMPDIR}/zip.log
 				rm -rf "$i"
 			fi
 			if [[ $(echo "$i" | grep "\.dat\.br") ]]; then
@@ -445,14 +451,14 @@ if 7z l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $(find "$
 			rm -rf ${line}.transfer.list ${line}.new.dat
 		done
 	done
-elif 7z l -ba "${FILEPATH}" | grep rawprogram || [[ $(find "${TMPDIR}" -type f -name "*rawprogram*" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep rawprogram || [[ $(find "${TMPDIR}" -type f -name "*rawprogram*" | wc -l) -ge 1 ]]; then
 	echo "QFIL Detected"
-	rawprograms=$(7z l -ba ${FILEPATH} | gawk '{ print $NF }' | grep rawprogram)
-	7z e -y ${FILEPATH} $rawprograms 2>/dev/null >> ${TMPDIR}/zip.log
+	rawprograms=$(${BIN_7ZZ} l -ba ${FILEPATH} | gawk '{ print $NF }' | grep rawprogram)
+	${BIN_7ZZ} e -y ${FILEPATH} $rawprograms 2>/dev/null >> ${TMPDIR}/zip.log
 	for partition in $PARTITIONS; do
-		partitionsonzip=$(7z l -ba ${FILEPATH} | gawk '{ print $NF }' | grep $partition)
+		partitionsonzip=$(${BIN_7ZZ} l -ba ${FILEPATH} | gawk '{ print $NF }' | grep $partition)
 		if [[ ! $partitionsonzip == "" ]]; then
-			7z e -y ${FILEPATH} $partitionsonzip 2>/dev/null >> ${TMPDIR}/zip.log
+			${BIN_7ZZ} e -y ${FILEPATH} $partitionsonzip 2>/dev/null >> ${TMPDIR}/zip.log
 			if [[ ! -f "$partition.img" ]]; then
 				if [[ -f "$partition.raw.img" ]]; then
 					mv "$partition.raw.img" "$partition.img"
@@ -467,21 +473,21 @@ elif 7z l -ba "${FILEPATH}" | grep rawprogram || [[ $(find "${TMPDIR}" -type f -
 	if [[ -f super.img ]]; then
 		superimage_extract || exit 1
 	fi
-elif 7z l -ba "${FILEPATH}" | grep -q ".*.nb0" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*.nb0*" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q ".*.nb0" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*.nb0*" | wc -l) -ge 1 ]]; then
 	printf "nb0-Formatted Firmware Detected.\n"
 	if [[ -f "${FILEPATH}" ]]; then
-		to_extract=$(7z l -ba "${FILEPATH}" | grep ".*.nb0" | gawk '{print $NF}')
-		7z e -y -- "${FILEPATH}" "${to_extract}" 2>/dev/null >> "${TMPDIR}"/zip.log
+		to_extract=$(${BIN_7ZZ} l -ba "${FILEPATH}" | grep ".*.nb0" | gawk '{print $NF}')
+		${BIN_7ZZ} e -y -- "${FILEPATH}" "${to_extract}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	else
 		find "${TMPDIR}" -type f -name "*.nb0*" -exec mv {} . \; 2>/dev/null
 	fi
 	"${NB0_EXTRACT}" "${to_extract}" "${TMPDIR}"
-elif 7z l -ba "${FILEPATH}" | grep system | grep chunk | grep -q -v ".*\.so$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*system*chunk*" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep system | grep chunk | grep -q -v ".*\.so$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*system*chunk*" | wc -l) -ge 1 ]]; then
 	printf "Chunk Detected.\n"
 	for partition in ${PARTITIONS}; do
 		if [[ -f "${FILEPATH}" ]]; then
-			foundpartitions=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}".img)
-			7z e -y -- "${FILEPATH}" *"${partition}"*chunk* */*"${partition}"*chunk* "${foundpartitions}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
+			foundpartitions=$(${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}".img)
+			${BIN_7ZZ} e -y -- "${FILEPATH}" *"${partition}"*chunk* */*"${partition}"*chunk* "${foundpartitions}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
 		else
 			find "${TMPDIR}" -type f -name "*${partition}*chunk*" -exec mv {} . \; 2>/dev/null
 			find "${TMPDIR}" -type f -name "*${partition}*.img" -exec mv {} . \; 2>/dev/null
@@ -497,10 +503,10 @@ elif 7z l -ba "${FILEPATH}" | grep system | grep chunk | grep -q -v ".*\.so$" 2>
 			rm -rf -- *"${partition}"*chunk* 2>/dev/null
 		fi
 	done
-elif 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q "system_new.img\|^system.img\|\/system.img\|\/system_image.emmc.img\|^system_image.emmc.img" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system*.img" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q "system_new.img\|^system.img\|\/system.img\|\/system_image.emmc.img\|^system_image.emmc.img" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system*.img" | wc -l) -ge 1 ]]; then
 	printf "Image File detected.\n"
 	if [[ -f "${FILEPATH}" ]]; then
-		7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
+		${BIN_7ZZ} x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	fi
 	for f in "${TMPDIR}"/*; do detox -r "${f}" 2>/dev/null; done
 	find "${TMPDIR}" -mindepth 2 -type f -name "*_image.emmc.img" | while read -r i; do mv "${i}" "${i/_image.emmc.img/.img}" 2>/dev/null; done
@@ -512,9 +518,9 @@ elif 7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q "system_new.img\|^sys
 	find "${TMPDIR}" -type f -iname "*Release_Note.txt" -exec mv {} "${OUTDIR}"/ \;
 	find "${TMPDIR}" -type f ! -name "*img*" -exec rm -rf {} \;	# delete other files
 	find "${TMPDIR}" -maxdepth 3 -type f -name "*.img" -exec mv {} . \; 2>/dev/null
-elif 7z l -ba "${FILEPATH}" | grep -q "system.sin\|.*system_.*\.sin" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system*.sin" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "system.sin\|.*system_.*\.sin" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system*.sin" | wc -l) -ge 1 ]]; then
 	printf "sin Image Detected.\n"
-	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
+	[[ -f "${FILEPATH}" ]] && ${BIN_7ZZ} x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	# Remove Unnecessary Filename Part
 	to_remove=$(find . -type f | grep ".*boot_.*\.sin" | gawk '{print $NF}' | sed -e 's/boot_\(.*\).sin/\1/')
 	[[ -z "$to_remove" ]] && to_remove=$(find . -type f | grep ".*cache_.*\.sin" | gawk '{print $NF}' | sed -e 's/cache_\(.*\).sin/\1/')
@@ -529,9 +535,9 @@ elif 7z l -ba "${FILEPATH}" | grep -q "system.sin\|.*system_.*\.sin" 2>/dev/null
 		echo "super image inside a sin detected"
 		superimage_extract || exit 1
 	fi
-elif 7z l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*.pac" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*.pac" | wc -l) -ge 1 ]]; then
 	printf "pac Detected.\n"
-	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
+	[[ -f "${FILEPATH}" ]] && ${BIN_7ZZ} x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	for f in "${TMPDIR}"/*; do detox -r "${f}"; done
 	pac_list=$(find . -type f -name "*.pac" | cut -d'/' -f'2-' | sort)
 	for file in ${pac_list}; do
@@ -540,25 +546,25 @@ elif 7z l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${TMPDIR}" 
 	if [[ -f super.img ]]; then
 		superimage_extract || exit 1
 	fi
-elif 7z l -ba "${FILEPATH}" | grep -q "system.bin" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.bin" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "system.bin" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system.bin" | wc -l) -ge 1 ]]; then
 	printf "bin Images Detected\n"
-	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
+	[[ -f "${FILEPATH}" ]] && ${BIN_7ZZ} x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	find "${TMPDIR}" -mindepth 2 -type f -name "*.bin" -exec mv {} . \;	# move .img in sub-dir to ${TMPDIR}
 	find "${TMPDIR}" -maxdepth 1 -type f -name "*.bin" | while read -r i; do mv "${i}" "${i/\.bin/.img}" 2>/dev/null; done	# proper names
-elif 7z l -ba "${FILEPATH}" | grep -q "system-p" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system-p*" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "system-p" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system-p*" | wc -l) -ge 1 ]]; then
 	printf "P-Suffix Images Detected\n"
 	for partition in ${PARTITIONS}; do
 		if [[ -f "${FILEPATH}" ]]; then
-			foundpartitions=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}-p")
-			7z e -y -- "${FILEPATH}" "${foundpartitions}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
+			foundpartitions=$(${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}-p")
+			${BIN_7ZZ} e -y -- "${FILEPATH}" "${foundpartitions}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
 		else
 			foundpartitions=$(find . -type f -name "*${partition}-p*" | cut -d'/' -f'2-')
 		fi
 	[[ -n "${foundpartitions}" ]] && mv "$(ls "${partition}"-p*)" "${partition}".img
 	done
-elif 7z l -ba "${FILEPATH}" | grep -q "system-sign.img" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system-sign.img" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "system-sign.img" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "system-sign.img" | wc -l) -ge 1 ]]; then
 	printf "Signed Images Detected\n"
-	[[ -f "${FILEPATH}" ]] && 7z x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
+	[[ -f "${FILEPATH}" ]] && ${BIN_7ZZ} x -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	for f in "${TMPDIR}"/*; do detox -r "${f}"; done
 	for partition in ${PARTITIONS}; do
 		[[ -e "${TMPDIR}"/"${partition}".img ]] && mv "${TMPDIR}"/"${partition}".img "${OUTDIR}"/"${partition}".img
@@ -585,10 +591,10 @@ elif 7z l -ba "${FILEPATH}" | grep -q "system-sign.img" 2>/dev/null || [[ $(find
 			dd if="${TMPDIR}"/"${file}" of="${TMPDIR}"/x.img bs=$((0x4040)) skip=1 >/dev/null 2>&1
 		fi
 	done
-elif [[ $(7z l -ba "$FILEPATH" | grep "super.img") ]]; then
+elif [[ $(${BIN_7ZZ} l -ba "$FILEPATH" | grep "super.img") ]]; then
 	echo "Super Image detected"
-	foundsupers=$(7z l -ba "${FILEPATH}" | gawk '{ print $NF }' | grep "super.img")
-	7z e -y "${FILEPATH}" $foundsupers dummypartition 2>/dev/null >> ${TMPDIR}/zip.log
+	foundsupers=$(${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{ print $NF }' | grep "super.img")
+	${BIN_7ZZ} e -y "${FILEPATH}" $foundsupers dummypartition 2>/dev/null >> ${TMPDIR}/zip.log
 	superchunk=$(ls | grep chunk | grep super | sort)
 	if [[ $(echo "$superchunk" | grep "sparsechunk") ]]; then
 		"${SIMG2IMG}" $(echo "$superchunk" | tr '\n' ' ') super.img.raw 2>/dev/null
@@ -598,8 +604,8 @@ elif [[ $(7z l -ba "$FILEPATH" | grep "super.img") ]]; then
 elif [[ $(find "${TMPDIR}" -type f -name "super*.*img" | wc -l) -ge 1 ]]; then
 	echo "Super Image Detected"
 	if [[ -f "${FILEPATH}" ]]; then
-		foundsupers=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "super.*img")
-		7z e -y -- "${FILEPATH}" "${foundsupers}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
+		foundsupers=$(${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "super.*img")
+		${BIN_7ZZ} e -y -- "${FILEPATH}" "${foundsupers}" dummypartition 2>/dev/null >> "${TMPDIR}"/zip.log
 	fi
 	splitsupers=$(ls | grep -oP "super.[0-9].+.img")
 	if [[ ! -z "${splitsupers}" ]]; then
@@ -614,10 +620,10 @@ elif [[ $(find "${TMPDIR}" -type f -name "super*.*img" | wc -l) -ge 1 ]]; then
 		rm -rf -- *super*chunk*
 	fi
 	superimage_extract || exit 1
-elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*AP_*tar.md5" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "*AP_*tar.md5" | wc -l) -ge 1 ]]; then
 	printf "AP tarmd5 Detected\n"
 	#mv -f "${FILEPATH}" "${TMPDIR}"/
-	[[ -f "${FILEPATH}" ]] && 7z e -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
+	[[ -f "${FILEPATH}" ]] && ${BIN_7ZZ} e -y "${FILEPATH}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	printf "Extracting Images...\n"
 	for i in $(ls *.tar.md5); do
 		tar -xf "${i}" || exit 1
@@ -642,14 +648,14 @@ elif 7z l -ba "${FILEPATH}" | grep tar.md5 | gawk '{print $NF}' | grep -q AP_ 2>
 		printf "Extract failed\n"
 		rm -rf "${TMPDIR}" && exit 1
 	fi
-elif 7z l -ba "${FILEPATH}" | grep -q payload.bin 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "payload.bin" | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q payload.bin 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "payload.bin" | wc -l) -ge 1 ]]; then
 	printf "AB OTA Payload Detected\n"
 	${PAYLOAD_EXTRACTOR} -c "$(nproc --all)" -o "${TMPDIR}" "${FILEPATH}" >/dev/null
-elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar" \) | wc -l) -ge 1 ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" 2>/dev/null || [[ $(find "${TMPDIR}" -type f \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar" \) | wc -l) -ge 1 ]]; then
 	printf "Rar/Zip/7Zip/Tar Archived Firmware Detected\n"
 	if [[ -f "${FILEPATH}" ]]; then
 		mkdir -p "${TMPDIR}"/"${UNZIP_DIR}" 2>/dev/null
-		7z e -y "${FILEPATH}" -o"${TMPDIR}"/"${UNZIP_DIR}"  >> "${TMPDIR}"/zip.log
+		${BIN_7ZZ} e -y "${FILEPATH}" -o"${TMPDIR}"/"${UNZIP_DIR}"  >> "${TMPDIR}"/zip.log
 		for f in "${TMPDIR}"/"${UNZIP_DIR}"/*; do detox -r "${f}" 2>/dev/null; done
 	fi
 	zip_list=$(find ./"${UNZIP_DIR}" -type f -size +300M \( -name "*.rar" -o -name "*.zip" -o -name "*.7z" -o -name "*.tar" \) | cut -d'/' -f'2-' | sort)
@@ -663,9 +669,9 @@ elif 7z l -ba "${FILEPATH}" | grep ".*.rar\|.*.zip\|.*.7z\|.*.tar$" 2>/dev/null 
 		exit
 	done
 	rm -rf "${TMPDIR:?}"/"${UNZIP_DIR}"
-elif 7z l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "UPDATE.APP") ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "UPDATE.APP") ]]; then
 	printf "Huawei UPDATE.APP Detected\n"
-	[[ -f "${FILEPATH}" ]] && 7z x "${FILEPATH}" UPDATE.APP 2>/dev/null >> "${TMPDIR}"/zip.log
+	[[ -f "${FILEPATH}" ]] && ${BIN_7ZZ} x "${FILEPATH}" UPDATE.APP 2>/dev/null >> "${TMPDIR}"/zip.log
 	find "${TMPDIR}" -type f -name "UPDATE.APP" -exec mv {} . \;
 	python3 "${SPLITUAPP}" -f "UPDATE.APP" -l super preas preavs || (
 	for partition in ${PARTITIONS}; do
@@ -678,7 +684,7 @@ elif 7z l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(find "${T
 		[[ ! -s super.img.raw && -f super.img ]] && mv super.img super.img.raw
 	fi
 	superimage_extract || exit 1
-elif 7z l -ba "${FILEPATH}" | grep -q "rockchip" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "rockchip") ]]; then
+elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "rockchip" 2>/dev/null || [[ $(find "${TMPDIR}" -type f -name "rockchip") ]]; then
 	printf "Rockchip Detected\n"
 	${RK_EXTRACT} -unpack "${FILEPATH}" ${TMPDIR}
 	${AFPTOOL_EXTRACT} -unpack ${TMPDIR}/firmware.img ${TMPDIR}
@@ -719,8 +725,8 @@ done
 # Process All partitions From TMPDIR Now
 for partition in ${PARTITIONS}; do
 	if [[ ! -f "${partition}".img ]]; then
-		foundpart=$(7z l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}.img" 2>/dev/null)
-		7z e -y -- "${FILEPATH}" "${foundpart}" */"${foundpart}" 2>/dev/null >> "${TMPDIR}"/zip.log
+		foundpart=$(${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep "${partition}.img" 2>/dev/null)
+		${BIN_7ZZ} e -y -- "${FILEPATH}" "${foundpart}" */"${foundpart}" 2>/dev/null >> "${TMPDIR}"/zip.log
 	fi
 	[[ -f "${partition}".img ]] && "${SIMG2IMG}" "${partition}".img "${OUTDIR}"/"${partition}".img 2>/dev/null
 	[[ ! -s "${OUTDIR}"/"${partition}".img && -f "${TMPDIR}"/"${partition}".img ]] && mv "${TMPDIR}"/"${partition}".img "${OUTDIR}"/"${partition}".img
@@ -816,7 +822,7 @@ for p in $PARTITIONS; do
 		if [[ -e "$p.img" ]]; then
 			mkdir "$p" 2> /dev/null || rm -rf "${p:?}"/*
 			echo "Extracting $p partition..."
-			7z x "$p".img -y -o"$p"/ > /dev/null 2>&1
+			${BIN_7ZZ} x "$p".img -y -o"$p"/ > /dev/null 2>&1
 			if [ $? -eq 0 ]; then
 				rm "$p".img > /dev/null 2>&1
 			else
@@ -865,7 +871,7 @@ for dir in "vendor/euclid" "system/system/euclid"; do
 		pushd "${dir}" || exit 1
 		for f in *.img; do
 			[[ -f "${f}" ]] || continue
-			7z x "${f}" -o"${f/.img/}"
+			${BIN_7ZZ} x "${f}" -o"${f/.img/}"
 			rm -f "${f}"
 		done
 		popd || exit 1
