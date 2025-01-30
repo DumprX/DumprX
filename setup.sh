@@ -82,14 +82,11 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 sleep 1
-echo -e ${PURPLE}"Distro Specific Setup Done, Now Installing pyhton Packages from pip..."${NORMAL}
+
+# Install `uv`
+echo -e ${BLUE}">> Installing uv for python packages..."${NORMAL}
 sleep 1
-[[ "${USE_VENV}" == "false" || "${USE_VENV}" == "0" ]] || {
-    python3 -m venv .venv
-    [ -e ".venv" ] && source .venv/bin/activate
-}
-pip install backports.lzma extract-dtb protobuf==3.20.0 pycryptodome docopt zstandard twrpdtgen future requests humanize clint lz4 pycryptodome pycryptodomex aospdtgen || abort "Setup Failed!"
-sleep 1
+bash -c "$(curl -sL https://astral.sh/uv/install.sh)" || abort "Setup Failed!"
 
 # Done!
 echo -e ${GREEN}"Setup Complete!"${NORMAL}
