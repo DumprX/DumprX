@@ -822,7 +822,7 @@ for p in $PARTITIONS; do
 				rm "$p".img > /dev/null 2>&1
 			else
 				# Handling EROFS Images, which can't be handled by 7z.
-				echo "Extraction Failed my 7z"
+				echo "Extraction Failed by 7z"
 				if [ -f $p.img ] && [ $p != "modem" ]; then
 					echo "Couldn't extract $p partition by 7z. Using fsck.erofs."
 					rm -rf "${p}"/*
