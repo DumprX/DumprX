@@ -1352,19 +1352,17 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	echo ""
 
 	# Subgroup ID
-	get_gitlab_subgrp_id(){
-		local SUBGRP=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "${GITLAB_HOST}/api/v4/groups/${GIT_ORG}/subgroups" | jq -r .[] | jq -r .path,.id > /tmp/subgrp.txt
-		local i
-		for i in $(seq "$(cat /tmp/subgrp.txt | wc -l)")
-		do
-			local TMP_I=$(cat /tmp/subgrp.txt | head -"$i" | tail -1)
-			[[ "$TMP_I" == "$SUBGRP" ]] && cat /tmp/subgrp.txt | head -$(("$i"+1)) | tail -1 > "$2"
-		done
-		}
+	get_gitlab_subgrp_id() {
+    	local subgrp="${1,,}"
 
-	get_gitlab_subgrp_id ${brand} /tmp/subgrp_id.txt
-	SUBGRP_ID=$(< /tmp/subgrp_id.txt)
+    	curl -s \
+	        --request GET \
+    	    --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+        	"${GITLAB_HOST}/api/v4/groups/${GIT_ORG}/subgroups" \
+    		| jq -r --arg name "$subgrp" '.[] | select(.path == $name) | .id'
+	}
+
+	SUBGRP_ID=$(get_gitlab_subgrp_id "${brand}")
 
 	# Create Repository
 	curl -s \
@@ -1373,21 +1371,18 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	"${GITLAB_HOST}/api/v4/projects?name=${codename}&namespace_id=${SUBGRP_ID}&visibility=public"
 
 	# Get Project/Repo ID
-	get_gitlab_project_id(){
-		local PROJ="$1"
-		curl -s --request GET --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "${GITLAB_HOST}/api/v4/groups/$2/projects" | jq -r .[] | jq -r .path,.id > /tmp/proj.txt
-		local i
-		for i in $(seq "$(cat /tmp/proj.txt | wc -l)")
-		do
-			local TMP_I=$(cat /tmp/proj.txt | head -"$i" | tail -1)
-			[[ "$TMP_I" == "$PROJ" ]] && cat /tmp/proj.txt | head -$(("$i"+1)) | tail -1 > "$3"
-		done
-		}
-	get_gitlab_project_id ${codename} ${SUBGRP_ID} /tmp/proj_id.txt
-	PROJECT_ID=$(< /tmp/proj_id.txt)
+	get_gitlab_project_id() {
+	    local proj="$1"
+	    local group_id="$2"
 
-	# Delete the Temporary Files
-	rm -rf /tmp/{subgrp,subgrp_id,proj,proj_id}.txt
+    	curl -s \
+	        --request GET \
+    	    --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+        	"${GITLAB_HOST}/api/v4/groups/${group_id}/projects" \
+    		| jq -r --arg name "$proj" '.[] | select(.path == $name) | .id'
+	}
+
+	PROJECT_ID=$(get_gitlab_project_id "${codename}" "${SUBGRP_ID}")
 
 	# Commit and Push
 	# Pushing via HTTPS doesn't work on GitLab for Large Repos (it's an issue with gitlab for large repos)
