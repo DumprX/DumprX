@@ -1048,7 +1048,7 @@ abilist=$(grep -h -m1 -oP "(?<=^ro.product.cpu.abilist=).*" -hs {system,system/s
 locale=$(grep -h -m1 -oP "(?<=^ro.product.locale=).*" -hs {system,system/system}/build*.prop | head -1)
 [[ -z "${locale}" ]] && locale=undefined
 
-density=$(grep -h -m1 -oP "(?<=^ro.sf.lcd_density=).*" -hs {system,system/system}/build*.prop | head -1)
+density=$(grep -h -m1 -oP "(?<=^ro.sf.lcd_density=).*" -hs {vendor,system,system/system}/build*.prop | head -1)
 [[ -z "${density}" ]] && density=undefined
 
 is_ab=$(grep -h -m1 -oP "(?<=^ro.build.ab_update=).*" -hs {system,system/system,vendor}/build*.prop)
