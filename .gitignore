@@ -10,3 +10,4 @@ out/
 __pycache__
 utils/oppo_*
 utils/vmlinux*
+utils/extract-ikconfig

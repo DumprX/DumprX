@@ -80,7 +80,6 @@ mkdir -p "${OUTDIR}" "${TMPDIR}" 2>/dev/null
 EXTERNAL_TOOLS=(
 	bkerler/oppo_ozip_decrypt
 	bkerler/oppo_decrypt
-	marin-m/vmlinux-to-elf
 	ShivamKumarJha/android_tools
 	HemanthJabalpuri/pacextractor
 )
@@ -93,6 +92,12 @@ for tool_slug in "${EXTERNAL_TOOLS[@]}"; do
 	fi
 done
 
+# Retrive 'extract-ikconfig' from torvalds/linux
+if ! [[ -f "${UTILSDIR}"/extract-ikconfig ]]; then
+    curl -s -Lo "${UTILSDIR}"/extract-ikconfig https://raw.githubusercontent.com/torvalds/linux/refs/heads/master/scripts/extract-ikconfig
+    chmod +x "${UTILSDIR}"/extract-ikconfig
+fi
+
 ## See README.md File For Program Credits
 # Set Utility Program Alias
 SDAT2IMG="${UTILSDIR}"/sdat2img.py
@@ -100,9 +105,6 @@ SIMG2IMG="${UTILSDIR}"/bin/simg2img
 PACKSPARSEIMG="${UTILSDIR}"/bin/packsparseimg
 UNSIN="${UTILSDIR}"/unsin
 PAYLOAD_EXTRACTOR="${UTILSDIR}"/bin/payload-dumper-go
-DTC="${UTILSDIR}"/dtc
-VMLINUX2ELF="${UTILSDIR}"/vmlinux-to-elf/vmlinux-to-elf
-KALLSYMS_FINDER="${UTILSDIR}"/vmlinux-to-elf/kallsyms-finder
 OZIPDECRYPT="${UTILSDIR}"/oppo_ozip_decrypt/ozipdecrypt.py
 OFP_QC_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_qc_decrypt.py
 OFP_MTK_DECRYPT="${UTILSDIR}"/oppo_decrypt/ofp_mtk_decrypt.py
@@ -115,7 +117,7 @@ KDZ_EXTRACT="${UTILSDIR}"/kdztools/unkdz.py
 DZ_EXTRACT="${UTILSDIR}"/kdztools/undz.py
 RUUDECRYPT="${UTILSDIR}"/RUU_Decrypt_Tool
 EXTRACT_IKCONFIG="${UTILSDIR}"/extract-ikconfig
-UNPACKBOOT="${UTILSDIR}"/unpackboot.sh
+MAGISKBOOT="${UTILSDIR}"/bin/magiskboot
 AML_EXTRACT="${UTILSDIR}"/aml-upgrade-package-extract
 AFPTOOL_EXTRACT="${UTILSDIR}"/bin/afptool
 RK_EXTRACT="${UTILSDIR}"/bin/rkImageMaker
@@ -750,65 +752,202 @@ done
 cd "${OUTDIR}"/ || exit
 rm -rf "${TMPDIR:?}"/*
 
-# Extract boot.img
-if [[ -f "${OUTDIR}"/boot.img ]]; then
-	# Extract dts
-	mkdir -p "${OUTDIR}"/bootimg "${OUTDIR}"/bootdts 2>/dev/null
-	uvx -q extract-dtb "${OUTDIR}"/boot.img -o "${OUTDIR}"/bootimg >/dev/null
-	find "${OUTDIR}"/bootimg -name '*.dtb' -type f | gawk -F'/' '{print $NF}' | while read -r i; do "${DTC}" -q -s -f -I dtb -O dts -o bootdts/"${i/\.dtb/.dts}" bootimg/"${i}"; done 2>/dev/null
-	bash "${UNPACKBOOT}" "${OUTDIR}"/boot.img "${OUTDIR}"/boot 2>/dev/null
-	printf "Boot extracted\n"
-	# extract-ikconfig
-	mkdir -p "${OUTDIR}"/bootRE
-	bash "${EXTRACT_IKCONFIG}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/ikconfig 2> /dev/null
-	[[ ! -s "${OUTDIR}"/bootRE/ikconfig ]] && rm -f "${OUTDIR}"/bootRE/ikconfig 2>/dev/null
-	# vmlinux-to-elf
-	if [[ ! -f "${OUTDIR}"/vendor_boot.img ]]; then
-		python3 "${KALLSYMS_FINDER}" "${OUTDIR}"/boot.img > "${OUTDIR}"/bootRE/boot_kallsyms.txt >/dev/null 2>&1
-		printf "boot_kallsyms.txt generated\n"
-	else
-		python3 "${KALLSYMS_FINDER}" "${OUTDIR}"/boot/kernel > "${OUTDIR}"/bootRE/kernel_kallsyms.txt >/dev/null 2>&1
-		printf "kernel_kallsyms.txt generated\n"
-	fi
-	python3 "${VMLINUX2ELF}" "${OUTDIR}"/boot.img "${OUTDIR}"/bootRE/boot.elf >/dev/null 2>&1
-	printf "boot.elf generated\n"
-	[[ -f "${OUTDIR}"/boot/dtb.img ]] && {
-		mkdir -p "${OUTDIR}"/dtbimg 2>/dev/null
-		uvx -q extract-dtb "${OUTDIR}"/boot/dtb.img -o "${OUTDIR}"/dtbimg >/dev/null
-	}
+get_bootimg_info() {
+    local bootimg="$1"
+    local tempdir="$2"
+
+    # Detect and skip MTK/vendor header
+    local offset
+    offset=$(grep -abo "ANDROID!\|VNDRBOOT" "$bootimg" | cut -f1 -d:)
+    [[ -z "$offset" ]] && { echo "ERROR: No Android/VndrBoot magic found"; return 1; }
+
+    local VNDRBOOT=false
+    grep -qabo "VNDRBOOT" "$bootimg" && VNDRBOOT=true
+
+    local header_addr=40
+    $VNDRBOOT && header_addr=8
+
+    # Read header version
+    local version
+    version=$(od -A n -D -j "$header_addr" -N 1 "$bootimg" | sed 's/ //g')
+
+    # Read sizes
+    local kernel_size ramdisk_size second_size dtb_size dtbo_size page_size
+    kernel_size=$(od -A n -D -j 8  -N 4 "$bootimg" | sed 's/ //g')
+    ramdisk_size=$(od -A n -D -j 16 -N 4 "$bootimg" | sed 's/ //g')
+    second_size=$(od -A n -D -j 24 -N 4 "$bootimg" | sed 's/ //g')
+    page_size=$(od -A n -D -j 36 -N 4 "$bootimg" | sed 's/ //g')
+    dtb_size=$(od -A n -D -j 40 -N 4 "$bootimg" | sed 's/ //g')
+    dtbo_size=$(od -A n -D -j 1632 -N 4 "$bootimg" | sed 's/ //g')
+
+    # Read addresses
+    local kernel_addr ramdisk_addr second_addr tags_addr dtb_addr dtbo_addr
+    kernel_addr=0x$(od -A n -X -j 12 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+    ramdisk_addr=0x$(od -A n -X -j 20 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+    second_addr=0x$(od -A n -X -j 28 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+    tags_addr=0x$(od -A n -X -j 32 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+    [[ $dtbo_size -gt 0 ]] && \
+        dtbo_addr=0x$(od -A n -X -j 1636 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+
+    # Read board and cmdline
+    local board cmd_line os_version patch_level
+    board=$(od -A n -S1 -j 48 -N 16 "$bootimg")
+    cmd_line=$(od -A n -S1 -j 64 -N 512 "$bootimg")
+
+    # Version-specific overrides
+    if [[ $version -eq 2 ]]; then
+        dtb_size=$(od -A n -D -j 1648 -N 4 "$bootimg" | sed 's/ //g')
+        dtb_addr=0x$(od -A n -X -j 1652 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+
+    elif [[ $version -eq 3 ]]; then
+        page_size=4096
+        board=; second_size=0; second_addr=; dtb_size=0; dtb_addr=
+
+        if $VNDRBOOT; then
+            kernel_addr=0x$(od -A n -X -j 16 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+            ramdisk_addr=0x$(od -A n -X -j 20 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+            ramdisk_size=$(od -A n -D -j 24 -N 4 "$bootimg" | sed 's/ //g')
+            cmd_line=$(od -A n -S1 -j 28 -N 2048 "$bootimg")
+            tags_addr=0x$(od -A n -X -j 2076 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+            dtb_size=$(od -A n -D -j 2100 -N 4 "$bootimg" | sed 's/ //g')
+            dtb_addr=0x$(od -A n -X -j 2104 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
+        else
+            kernel_addr=0x00008000
+            kernel_size=$(od -A n -D -j 8  -N 4 "$bootimg" | sed 's/ //g')
+            ramdisk_size=$(od -A n -D -j 12 -N 4 "$bootimg" | sed 's/ //g')
+            cmd_line=$(od -A n -S1 -j 44 -N 1536 "$bootimg")
+            local raw_os
+            raw_os=$(od -A n -D -j 16 -N 4 "$bootimg" | sed 's/ //g')
+            patch_level=$(( raw_os & ((1<<11)-1) ))
+            raw_os=$(( raw_os >> 11 ))
+            os_version=$(( raw_os>>14 )).$(( (raw_os>>7) & ((1<<7)-1) )).$(( raw_os & ((1<<7)-1) ))
+            patch_level=$(( (patch_level>>4) + 2000 )):$(( patch_level & ((1<<4)-1) ))
+            kernel_addr=; ramdisk_addr=; tags_addr=
+        fi
+    fi
+
+    # Compute offsets from base
+    local base_addr
+    base_addr=$(( kernel_addr - 0x00008000 ))
+
+    _fmt_offset() { printf "0x%08x" "$(( $1 - base_addr ))"; }
+
+    local kernel_offset ramdisk_offset second_offset tags_offset dtb_offset dtbo_offset
+    [[ -n "$kernel_addr"  ]] && kernel_offset=$(_fmt_offset  "$kernel_addr")
+    [[ -n "$ramdisk_addr" ]] && ramdisk_offset=$(_fmt_offset "$ramdisk_addr")
+    [[ -n "$second_addr"  ]] && second_offset=$(_fmt_offset  "$second_addr")
+    [[ -n "$tags_addr"    ]] && tags_offset=$(_fmt_offset    "$tags_addr")
+    [[ -n "$dtb_addr"     ]] && dtb_offset=$(_fmt_offset     "$dtb_addr")
+    [[ -n "$dtbo_addr"    ]] && dtbo_offset=$(_fmt_offset    "$dtbo_addr")
+    base_addr=$(printf "0x%08x" "$base_addr")
+
+    # Suppress offsets based on version/type
+    if [[ $version -gt 2 ]] && ! $VNDRBOOT; then
+        tags_offset=; ramdisk_offset=
+    fi
+    $VNDRBOOT && kernel_addr= && dtbo_offset=
+
+    # Write img_info
+    {
+        echo "kernel=kernel"
+        echo "ramdisk=ramdisk"
+        echo "page_size=$page_size"
+        echo "kernel_size=$kernel_size"
+        echo "ramdisk_size=$ramdisk_size"
+        echo "base_addr=$base_addr"
+        [[ -n "$kernel_offset"  ]] && echo "kernel_offset=$kernel_offset"
+        [[ -n "$ramdisk_offset" ]] && echo "ramdisk_offset=$ramdisk_offset"
+        [[ -n "$tags_offset"    ]] && echo "tags_offset=$tags_offset"
+        [[ -n "$second_size"    ]] && [[ $second_size -gt 0 ]] && echo "second=second.img" && echo "second_size=$second_size" && echo "second_offset=$second_offset"
+        [[ -n "$dtbo_size"      ]] && [[ $dtbo_size  -gt 0 ]] && echo "dtbo=dtbo.img"     && echo "dtbo_size=$dtbo_size"     && echo "dtbo_offset=$dtbo_offset"
+        [[ -n "$dtb_size"       ]] && [[ $dtb_size   -gt 0 ]] && echo "dt=dtb.img"        && echo "dtb_size=$dtb_size"       && [[ $version -gt 1 ]] && echo "dtb_offset=$dtb_offset"
+        [[ -n "$os_version"     ]] && echo "os_version=$os_version"
+        [[ -n "$patch_level"    ]] && echo "os_patch_level=$patch_level"
+        [[ -n "$board"          ]] && echo "board=\"$board\""
+        echo "cmd_line='$(echo "$cmd_line" | sed "s/'/'\"'\"'/g")'"
+    } > "$tempdir/img_info"
+}
+
+# Extract and decompile device-tree blobs
+for image in boot vendor_boot vendor_kernel_boot init_boot recovery; do
+    if [[ -f "${image}".img ]]; then
+        # Create working directories
+        mkdir -p "${image}/dtb" "${image}/dts"
+
+        # Unpack image's content
+        echo "Extracting '${image}' content..."
+		cd "${image}"
+        ${MAGISKBOOT} unpack ../"${image}.img" > /dev/null
+		cd -
+		get_bootimg_info "${image}.img" "${image}"
+
+        ## Retrive image's ramdisk, and extract it
+		ramdiskfile=$(find "${image}" -type f -name "ramdisk.cpio" | head -1)
+		${BIN_7ZZ} -snld x "${ramdiskfile}" -o"${image}/ramdisk" >> /dev/null 2>&1 || \
+			echo "Failed to extract ramdisk."
+
+        ## Clean-up
+		rm -rf "${ramdiskfile}" "${image}/vendor_ramdisk"
+
+        # Extract 'dtb' via 'extract-dtb'
+        echo "Trying to extract device-tree(s) from '${image}'..." 
+        uvx extract-dtb "${image}.img" -o "${image}/dtb" >> /dev/null 2>&1 || \
+            echo "Failed to extract device-tree blobs."
+
+        # Remove '00_kernel'
+        rm -rf "${image}/dtb/00_kernel"
+
+        # Decompile blobs to 'dts' via 'dtc'
+        for dtb in $(find "${image}/dtb" -type f); do
+            dtc -q -I dtb -O dts "${dtb}" >> "${image}/dts/$(basename "${dtb}" | sed 's/\.dtb/.dts/')" || \
+                echo "Failed to decompile device-tree blobs."
+        done
+    fi
+
+    # If no device-tree were extracted or decompiled, delete the directories
+    if ! ls -A ${image}/dtb >> /dev/null 2>&1; then
+        rm -rf "${image}/dtb" "${image}/dts"
+    fi
+done
+
+# Extract 'boot.img'-related content
+if [[ -f boot.img ]]; then
+    # Extract 'ikconfig'
+    echo "Extracting 'ikconfig'..."
+    ${EXTRACT_IKCONFIG} boot.img > ikconfig || {
+        echo "[ERROR] Failed to generate 'ikconfig'"
+    }
+
+    # Generate non-stack symbols
+    echo "[INFO] Generating 'kallsyms.txt'..."
+    uvx --from git+https://github.com/marin-m/vmlinux-to-elf@master kallsyms-finder boot.img > kallsyms.txt || \
+        echo "[ERROR] Failed to generate 'kallsyms.txt'"
+
+    # Generate analyzable '.elf'
+    echo "[INFO] Extracting 'boot.elf'..."
+    uvx --from git+https://github.com/marin-m/vmlinux-to-elf@master vmlinux-to-elf "boot.img" boot.elf > /dev/null ||
+        echo "[ERROR] Failed to generate 'boot.elf'"
+
 fi
 
-# Extract vendor_boot.img
-if [[ -f "${OUTDIR}"/vendor_boot.img ]]; then
-	# Extract dts
-	mkdir -p "${OUTDIR}"/vendor_bootimg "${OUTDIR}"/vendor_bootdts 2>/dev/null
-	uvx -q extract-dtb "${OUTDIR}"/vendor_boot.img -o "${OUTDIR}"/vendor_bootimg >/dev/null
-	find "${OUTDIR}"/vendor_bootimg -name '*.dtb' -type f | gawk -F'/' '{print $NF}' | while read -r i; do "${DTC}" -q -s -f -I dtb -O dts -o vendor_bootdts/"${i/\.dtb/.dts}" vendor_bootimg/"${i}"; done 2>/dev/null
-	bash "${UNPACKBOOT}" "${OUTDIR}"/vendor_boot.img "${OUTDIR}"/vendor_boot 2>/dev/null
-	printf "Vendor Boot extracted\n"
-	# extract-ikconfig
-	mkdir -p "${OUTDIR}"/vendor_bootRE
-	# vmlinux-to-elf
-	python3 "${VMLINUX2ELF}" "${OUTDIR}"/vendor_boot.img "${OUTDIR}"/vendor_bootRE/vendor_boot.elf >/dev/null 2>&1
-	printf "vendor_boot.elf generated\n"
-	[[ -f "${OUTDIR}"/vendor_boot/dtb.img ]] && {
-		mkdir -p "${OUTDIR}"/vendor_dtbimg 2>/dev/null
-		uvx -q extract-dtb "${OUTDIR}"/vendor_boot/dtb.img -o "${OUTDIR}"/vendor_dtbimg >/dev/null
-	}
-fi
+# Extract 'dtbo.img' separately
+if [[ -f dtbo.img ]]; then
+    # Create working directories
+    mkdir -p "dtbo/dts"
 
-# Extract recovery.img
-if [[ -f "${OUTDIR}"/recovery.img ]]; then
-	bash "${UNPACKBOOT}" "${OUTDIR}"/recovery.img "${OUTDIR}"/recovery 2>/dev/null
-	printf "Recovery extracted\n"
-fi
+    # Extract 'dtb' via 'extract-dtb'
+    echo "Trying to extract device-tree(s) from 'dtbo'..." 
+    uvx extract-dtb "dtbo.img" -o "dtbo/"  >> /dev/null 2>&1 || \
+        echo "Failed to extract device-tree blobs."
 
-# Extract dtbo
-if [[ -f "${OUTDIR}"/dtbo.img ]]; then
-	mkdir -p "${OUTDIR}"/dtbo "${OUTDIR}"/dtbodts 2>/dev/null
-	uvx -q extract-dtb "${OUTDIR}"/dtbo.img -o "${OUTDIR}"/dtbo >/dev/null
-	find "${OUTDIR}"/dtbo -name '*.dtb' -type f | gawk -F'/' '{print $NF}' | while read -r i; do "${DTC}" -q -s -f -I dtb -O dts -o dtbodts/"${i/\.dtb/.dts}" dtbo/"${i}"; done 2>/dev/null
-	printf "dtbo extracted\n"
+    # Remove '00_kernel'
+    rm -rf "dtbo/00_kernel"
+
+    # Decompile blobs to 'dts' via 'dtc'
+    for dtb in $(find "dtbo" -type f -name "*.dtb"); do
+        dtc -q -I dtb -O dts "${dtb}" >> "dtbo/dts/$(basename "${dtb}" | sed 's/\.dtb/.dts/')" || \
+            echo "Failed to decompile device-tree blobs."
+    done
 fi
 
 # Extract Partitions
@@ -1073,7 +1212,7 @@ fi
 platform=$(echo "${platform}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
 top_codename=$(echo "${codename}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
 manufacturer=$(echo "${manufacturer}" | tr '[:upper:]' '[:lower:]' | tr -dc '[:print:]' | tr '_' '-' | cut -c 1-35)
-[ -f "bootRE/ikconfig" ] && kernel_version=$(cat bootRE/ikconfig | grep "Kernel Configuration" | head -1 | awk '{print $3}')
+[ -f "ikconfig" ] && kernel_version=$(cat ikconfig | grep "Kernel Configuration" | head -1 | awk '{print $3}')
 # Repo README File
 printf "## %s\n- Manufacturer: %s\n- Platform: %s\n- Codename: %s\n- Brand: %s\n- Flavor: %s\n- Release Version: %s\n- Kernel Version: %s\n- Id: %s\n- Incremental: %s\n- Tags: %s\n- CPU Abilist: %s\n- A/B Device: %s\n- Treble Device: %s\n- Locale: %s\n- Screen Density: %s\n- Fingerprint: %s\n- OTA version: %s\n- Branch: %s\n- Repo: %s\n" "${description}" "${manufacturer}" "${platform}" "${codename}" "${brand}" "${flavor}" "${release}" "${kernel_version}" "${id}" "${incremental}" "${tags}" "${abilist}" "${is_ab}" "${treble_support}" "${locale}" "${density}" "${fingerprint}" "${otaver}" "${branch}" "${repo}" > "${OUTDIR}"/README.md
 cat "${OUTDIR}"/README.md
