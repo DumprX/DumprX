@@ -84,9 +84,11 @@ fi
 sleep 1
 
 # Install `uv`
-echo -e ${BLUE}">> Installing uv for python packages..."${NORMAL}
-sleep 1
-bash -c "$(curl -sL https://astral.sh/uv/install.sh)" || abort "Setup Failed!"
+if ! command -v uv > /dev/null ; then
+    echo -e ${BLUE}">> Installing uv for python packages..."${NORMAL}
+    sleep 1
+    bash -c "$(curl -sL https://astral.sh/uv/install.sh)" || abort "Setup Failed!"
+fi
 
 # Done!
 echo -e ${GREEN}"Setup Complete!"${NORMAL}
