@@ -927,7 +927,7 @@ tags=$(grep -h -m1 -oP "(?<=^ro.build.tags=).*" {vendor,system,system/system}/bu
 tags=$(echo "$tags" | head -1)
 
 # 'platform' property (e.g. zumapro)
-platform=$(grep -h -m1 -oP "(?<=^ro.board.platform=).*" {vendor,system,system/system}/build*.prop | head -1)
+platform=$(grep -h -m1 -oP '(?<=^ro.board.platform=)(?!common$).*' {vendor,system,system/system}/build*.prop | head -1)
 [[ -z ${platform} ]] && platform=$(grep -h -m1 -oP "(?<=^ro.vendor.board.platform=).*" vendor/build*.prop)
 [[ -z ${platform} ]] && platform=$(grep -h -m1 -oP "(?<=^ro.system.board.platform=).*" {system,system/system}/build*.prop)
 platform=$(echo "$platform" | head -1)
