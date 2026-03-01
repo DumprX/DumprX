@@ -1092,7 +1092,7 @@ else
 fi
 if [[ -f ${twrpimg} ]]; then
 	mkdir -p $twrpdtout
-	uvx -p 3.9 --from git+https://github.com/twrpdtgen/twrpdtgen@master twrpdtgen $twrpimg -o $twrpdtout
+	uvx --from git+https://github.com/twrpdtgen/twrpdtgen@master twrpdtgen $twrpimg -o $twrpdtout
 	if [[ "$?" = 0 ]]; then
 		[[ ! -e "${OUTDIR}"/twrp-device-tree/README.md ]] && curl https://raw.githubusercontent.com/wiki/SebaUbuntu/TWRP-device-tree-generator/4.-Build-TWRP-from-source.md > ${twrpdtout}/README.md
 	fi
@@ -1110,7 +1110,7 @@ find "$OUTDIR" -type f -printf '%P\n' | sort | grep -v ".git/" > "$OUTDIR"/all_f
 if [[ "$treble_support" = true ]]; then
         aospdtout="aosp-device-tree"
         mkdir -p $aospdtout
-        uvx -p 3.9 aospdtgen $OUTDIR -o $aospdtout
+        uvx aospdtgen $OUTDIR -o $aospdtout
 
         # Remove all .git directories from aospdtout
         rm -rf $(find $aospdtout -type d -name ".git")
