@@ -1295,43 +1295,42 @@ function write_sha1sum(){
 	local SRC_FILE=$1
 	local DST_FILE=$2
 
-	# Temporary file
-	local TMP_FILE=${SRC_FILE}.sha1sum.tmp
-	
-	# Get rid of all the Blank lines and Comments
-	( cat ${SRC_FILE} | grep -v '^[[:space:]]*$' | grep -v "# " ) > ${TMP_FILE}
+	# Temporary files
+	local TMP_PAIRS="${SRC_FILE}.pairs.tmp"
+	local TMP_SUMS="${SRC_FILE}.sums.tmp"
 
-	# Append the sha1sum of blobs in the Destination File
-	cp ${SRC_FILE} ${DST_FILE}
-	cat ${TMP_FILE} | while read -r i; do {
-		local BLOB=${i}
+	# Resolve each blob to its actual path
+	grep -v '^[[:space:]]*$' "${SRC_FILE}" | grep -v '^#' | while IFS= read -r blob; do
+		local topdir="${blob%%/*}"
+		local resolved="$blob"
+		[[ "${topdir:0:1}" == "-" ]] && resolved="${topdir#-}/${blob#${topdir}/}"
+		local path="$resolved"
+		[[ ! -e "$path" && -e "system/$path" ]] && path="system/$path"
+		[[ ! -e "$path" && -e "system/system/$path" ]] && path="system/system/$path"
+		printf '%s\t%s\n' "$blob" "$path"
+	done > "${TMP_PAIRS}"
 
-		# Do we have a "-" before the blob's path? If yes, then remove it
-		local BLOB_TOPDIR=$(echo ${BLOB} | cut -d / -f1)
-		[ "${BLOB_TOPDIR:0:1}" = "-" ] && local BLOB=${BLOB_TOPDIR/-/}/${BLOB/${BLOB_TOPDIR}\//}
+	# sha1sum on all files at once
+	cut -f2 "${TMP_PAIRS}" | xargs sha1sum 2>/dev/null > "${TMP_SUMS}"
 
-		# Is it a non- /vendor blob?
-		[ ! -e "${BLOB}" ] && {
-			# for system libs, bins etc.
-			if [ -e "system/${BLOB}" ]; then
-				local BLOB="system/${BLOB}"
-			# for system-as-root system libs, bins etc.
-			elif [ -e "system/system/${BLOB}" ]; then
-				local BLOB="system/system/${BLOB}"
-			fi
+	# Load pairs + sums and write to DST_FILE
+	awk '
+		FILENAME == ARGV[1] {
+			split($0, a, "\t")
+			path2blob[a[2]] = a[1]
+			next
 		}
-		local SHA1=$(sha1sum ${BLOB} | gawk '{print $1}')
+		FILENAME == ARGV[2] {
+			blob = path2blob[$2]
+			if (blob != "") blob2sha[blob] = $1
+			next
+		}
+		/^[[:space:]]*$/ || /^#/ { print; next }
+		{ print ($0 in blob2sha) ? $0 "|" blob2sha[$0] : $0 }
+	' "${TMP_PAIRS}" "${TMP_SUMS}" "${SRC_FILE}" > "${DST_FILE}"
 
-		local BLOB=${i} # Switch back to the Original Blob's name
-		local ORG_EXP="${BLOB}"
-		local FINAL_EXP="${BLOB}|${SHA1}"
-
-		# Append the |sha1sum
-		sed -i "s:${ORG_EXP}$:${FINAL_EXP}:g" "${DST_FILE}"
-	}; done
-
-	# Delete the Temporary file
-	rm ${TMP_FILE}
+	# Delete the Temporary files
+	rm -f "${TMP_PAIRS}" "${TMP_SUMS}"
 }
 
 # Generate proprietary-files.txt
