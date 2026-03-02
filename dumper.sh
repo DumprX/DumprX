@@ -1023,183 +1023,213 @@ sort -u < "${TMPDIR}"/board-info.txt > "${OUTDIR}"/board-info.txt
 # set variables
 [[ $(find "$(pwd)"/system "$(pwd)"/system/system "$(pwd)"/vendor "$(pwd)"/*product -maxdepth 1 -type f -name "build*.prop" 2>/dev/null | sort -u | gawk '{print $NF}') ]] || { printf "No system/vendor/product build*.prop found, pushing cancelled.\n" && exit 1; }
 
+# Helper: grep last match from files
+get_prop() {
+    local prop="$1"
+    shift
+    local file val
+    for file in "$@"; do
+        val=$(grep -h -oP "(?<=^${prop}=).*" "$file" 2>/dev/null | tail -1)
+        if [[ -n "$val" ]]; then
+            echo "$val"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # 'flavor' property (e.g. caiman-user)
-flavor=$(grep -h -m1 -oP "(?<=^ro.build.flavor=).*" {vendor,system,system/system}/build.prop)
-[[ -z ${flavor} ]] && flavor=$(grep -h -m1 -oP "(?<=^ro.vendor.build.flavor=).*" vendor/build*.prop)
-[[ -z ${flavor} ]] && flavor=$(grep -h -m1 -oP "(?<=^ro.build.flavor=).*" {vendor,system,system/system}/build*.prop)
-[[ -z ${flavor} ]] && flavor=$(grep -h -m1 -oP "(?<=^ro.system.build.flavor=).*" {system,system/system}/build*.prop)
-[[ -z ${flavor} ]] && flavor=$(grep -h -m1 -oP "(?<=^ro.build.type=).*" {system,system/system}/build*.prop)
+flavor=$(
+    get_prop "ro.build.flavor"        {vendor,system,system/system}/build.prop        ||
+    get_prop "ro.vendor.build.flavor" vendor/build*.prop                              ||
+    get_prop "ro.build.flavor"        {vendor,system,system/system}/build*.prop       ||
+    get_prop "ro.system.build.flavor" {system,system/system}/build*.prop              ||
+    get_prop "ro.build.type"          {system,system/system}/build*.prop
+)
 
 # 'release' property (e.g. 15)
-release=$(grep -h -m1 -oP "(?<=^ro.build.version.release=).*" {my_manifest,vendor,system,system/system}/build*.prop)
-[[ -z ${release} ]] && release=$(grep -h -m1 -oP "(?<=^ro.vendor.build.version.release=).*" vendor/build*.prop)
-[[ -z ${release} ]] && release=$(grep -h -m1 -oP "(?<=^ro.system.build.version.release=).*" {system,system/system}/build*.prop)
-release=$(echo "$release" | head -1)
+release=$(
+    get_prop "ro.build.version.release"        {my_manifest,vendor,system,system/system}/build*.prop ||
+    get_prop "ro.vendor.build.version.release" vendor/build*.prop                                    ||
+    get_prop "ro.system.build.version.release" {system,system/system}/build*.prop
+)
 
 # 'id' property (e.g. AP4A.241205.013)
-id=$(grep -h -m1 -oP "(?<=^ro.build.id=).*" my_manifest/build*.prop)
-[[ -z ${id} ]] && id=$(grep -h -m1 -oP "(?<=^ro.build.id=).*" system/system/build_default.prop)
-[[ -z ${id} ]] && id=$(grep -h -m1 -oP "(?<=^ro.build.id=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${id} ]] && id=$(grep -h -m1 -oP "(?<=^ro.build.id=).*" {vendor,system,system/system}/build*.prop)
-[[ -z ${id} ]] && id=$(grep -h -m1 -oP "(?<=^ro.vendor.build.id=).*" vendor/build*.prop)
-[[ -z ${id} ]] && id=$(grep -h -m1 -oP "(?<=^ro.system.build.id=).*" {system,system/system}/build*.prop)
-id=$(echo "$id" | head -1)
+id=$(
+    get_prop "ro.build.id"        my_manifest/build*.prop                   ||
+    get_prop "ro.build.id"        system/system/build_default.prop          ||
+    get_prop "ro.build.id"        vendor/euclid/my_manifest/build.prop      ||
+    get_prop "ro.build.id"        {vendor,system,system/system}/build*.prop ||
+    get_prop "ro.vendor.build.id" vendor/build*.prop                        ||
+    get_prop "ro.system.build.id" {system,system/system}/build*.prop
+)
 
 # 'incremental' property (e.g. 12621605)
-incremental=$(grep -h -m1 -oP "(?<=^ro.build.version.incremental=).*" my_manifest/build*.prop)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.build.version.incremental=).*" system/system/build_default.prop)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.build.version.incremental=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.build.version.incremental=).*" {vendor,system,system/system}/build*.prop | head -1)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.vendor.build.version.incremental=).*" my_manifest/build*.prop)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.vendor.build.version.incremental=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.vendor.build.version.incremental=).*" vendor/build*.prop)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.system.build.version.incremental=).*" {system,system/system}/build*.prop | head -1)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.build.version.incremental=).*" my_product/build*.prop)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.system.build.version.incremental=).*" my_product/build*.prop)
-[[ -z ${incremental} ]] && incremental=$(grep -h -m1 -oP "(?<=^ro.vendor.build.version.incremental=).*" my_product/build*.prop)
-incremental=$(echo "$incremental" | head -1)
+incremental=$(
+    get_prop "ro.build.version.incremental"        my_manifest/build*.prop                   ||
+    get_prop "ro.build.version.incremental"        system/system/build_default.prop          ||
+    get_prop "ro.build.version.incremental"        vendor/euclid/my_manifest/build.prop      ||
+    get_prop "ro.build.version.incremental"        {vendor,system,system/system}/build*.prop ||
+    get_prop "ro.vendor.build.version.incremental" my_manifest/build*.prop                   ||
+    get_prop "ro.vendor.build.version.incremental" vendor/euclid/my_manifest/build.prop      ||
+    get_prop "ro.vendor.build.version.incremental" vendor/build*.prop                        ||
+    get_prop "ro.system.build.version.incremental" {system,system/system}/build*.prop        ||
+    get_prop "ro.build.version.incremental"        my_product/build*.prop                    ||
+    get_prop "ro.system.build.version.incremental" my_product/build*.prop                    ||
+    get_prop "ro.vendor.build.version.incremental" my_product/build*.prop
+)
 
 # 'tags' property (e.g. release-keys)
-tags=$(grep -h -m1 -oP "(?<=^ro.build.tags=).*" {vendor,system,system/system}/build*.prop)
-[[ -z ${tags} ]] && tags=$(grep -h -m1 -oP "(?<=^ro.vendor.build.tags=).*" vendor/build*.prop)
-[[ -z ${tags} ]] && tags=$(grep -h -m1 -oP "(?<=^ro.system.build.tags=).*" {system,system/system}/build*.prop)
-tags=$(echo "$tags" | head -1)
+tags=$(
+    get_prop "ro.build.tags"        {vendor,system,system/system}/build*.prop ||
+    get_prop "ro.vendor.build.tags" vendor/build*.prop                        ||
+    get_prop "ro.system.build.tags" {system,system/system}/build*.prop
+)
 
 # 'platform' property (e.g. zumapro)
-platform=$(grep -h -m1 -oP '(?<=^ro.board.platform=)(?!common$).*' {vendor,system,system/system}/build*.prop | head -1)
-[[ -z ${platform} ]] && platform=$(grep -h -m1 -oP "(?<=^ro.vendor.board.platform=).*" vendor/build*.prop)
-[[ -z ${platform} ]] && platform=$(grep -h -m1 -oP "(?<=^ro.system.board.platform=).*" {system,system/system}/build*.prop)
-platform=$(echo "$platform" | head -1)
+platform=$(
+    grep -h -oP '(?<=^ro.board.platform=)(?!common$).*' {vendor,system,system/system}/build*.prop 2>/dev/null | tail -1 ||
+    get_prop "ro.vendor.board.platform" vendor/build*.prop                                                              ||
+    get_prop "ro.system.board.platform" {system,system/system}/build*.prop
+)
 
 # 'manufacturer' property (e.g. google)
-manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.odm.manufacturer=).*" odm/etc/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.manufacturer=).*" odm/etc/fingerprint/build.default.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.manufacturer=).*" my_product/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.manufacturer=).*" my_manifest/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.manufacturer=).*" system/system/build_default.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.manufacturer=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.manufacturer=).*" {vendor,system,system/system}/build*.prop | head -1)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.brand.sub=).*" my_product/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.brand.sub=).*" system/system/euclid/my_product/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.vendor.product.manufacturer=).*" vendor/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.vendor.manufacturer=).*" my_manifest/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.vendor.manufacturer=).*" system/system/build_default.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.vendor.manufacturer=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.vendor.manufacturer=).*" vendor/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.system.product.manufacturer=).*" {system,system/system}/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.system.manufacturer=).*" {system,system/system}/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.odm.manufacturer=).*" my_manifest/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.odm.manufacturer=).*" system/system/build_default.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.odm.manufacturer=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.odm.manufacturer=).*" vendor/odm/etc/build*.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.manufacturer=).*" {oppo_product,my_product}/build*.prop | head -1)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.manufacturer=).*" vendor/euclid/*/build.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.system.product.manufacturer=).*" vendor/euclid/*/build.prop)
-[[ -z ${manufacturer} ]] && manufacturer=$(grep -h -m1 -oP "(?<=^ro.product.product.manufacturer=).*" vendor/euclid/product/build*.prop)
-manufacturer=$(echo "$manufacturer" | head -1)
+manufacturer=$(
+    get_prop "ro.product.odm.manufacturer"     odm/etc/build*.prop                          ||
+    get_prop "ro.product.manufacturer"         odm/etc/fingerprint/build.default.prop       ||
+    get_prop "ro.product.manufacturer"         my_product/build*.prop                       ||
+    get_prop "ro.product.manufacturer"         my_manifest/build*.prop                      ||
+    get_prop "ro.product.manufacturer"         system/system/build_default.prop             ||
+    get_prop "ro.product.manufacturer"         vendor/euclid/my_manifest/build.prop         ||
+    get_prop "ro.product.manufacturer"         {vendor,system,system/system}/build*.prop    ||
+    get_prop "ro.product.brand.sub"            my_product/build*.prop                       ||
+    get_prop "ro.product.brand.sub"            system/system/euclid/my_product/build*.prop  ||
+    get_prop "ro.vendor.product.manufacturer"  vendor/build*.prop                           ||
+    get_prop "ro.product.vendor.manufacturer"  my_manifest/build*.prop                      ||
+    get_prop "ro.product.vendor.manufacturer"  system/system/build_default.prop             ||
+    get_prop "ro.product.vendor.manufacturer"  vendor/euclid/my_manifest/build.prop         ||
+    get_prop "ro.product.vendor.manufacturer"  vendor/build*.prop                           ||
+    get_prop "ro.system.product.manufacturer"  {system,system/system}/build*.prop           ||
+    get_prop "ro.product.system.manufacturer"  {system,system/system}/build*.prop           ||
+    get_prop "ro.product.odm.manufacturer"     my_manifest/build*.prop                      ||
+    get_prop "ro.product.odm.manufacturer"     system/system/build_default.prop             ||
+    get_prop "ro.product.odm.manufacturer"     vendor/euclid/my_manifest/build.prop         ||
+    get_prop "ro.product.odm.manufacturer"     vendor/odm/etc/build*.prop                   ||
+    get_prop "ro.product.manufacturer"         {oppo_product,my_product}/build*.prop        ||
+    get_prop "ro.product.manufacturer"         vendor/euclid/*/build.prop                   ||
+    get_prop "ro.system.product.manufacturer"  vendor/euclid/*/build.prop                   ||
+    get_prop "ro.product.product.manufacturer" vendor/euclid/product/build*.prop
+)
 
 # 'fingerprint' property (e.g. google/caiman/caiman:15/AP4A.241205.013/12621605:user/release-keys)
-fingerprint=$(grep -h -m1 -oP "(?<=^ro.odm.build.fingerprint=).*" odm/etc/*build*.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" my_manifest/build*.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" system/system/build_default.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" odm/etc/fingerprint/build.default.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" vendor/build*.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.build.fingerprint=).*" my_manifest/build*.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.build.fingerprint=).*" system/system/build_default.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.build.fingerprint=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.build.fingerprint=).*"  {system,system/system}/build*.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.product.build.fingerprint=).*" product/build*.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.system.build.fingerprint=).*" {system,system/system}/build*.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.build.fingerprint=).*" my_product/build.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.system.build.fingerprint=).*" my_product/build.prop)
-[[ -z ${fingerprint} ]] && fingerprint=$(grep -h -m1 -oP "(?<=^ro.vendor.build.fingerprint=).*" my_product/build.prop)
-fingerprint=$(echo "$fingerprint" | head -1)
+fingerprint=$(
+    get_prop "ro.odm.build.fingerprint"     odm/etc/*build*.prop                   ||
+    get_prop "ro.vendor.build.fingerprint"  my_manifest/build*.prop                ||
+    get_prop "ro.vendor.build.fingerprint"  system/system/build_default.prop       ||
+    get_prop "ro.vendor.build.fingerprint"  vendor/euclid/my_manifest/build.prop   ||
+    get_prop "ro.vendor.build.fingerprint"  odm/etc/fingerprint/build.default.prop ||
+    get_prop "ro.vendor.build.fingerprint"  vendor/build*.prop                     ||
+    get_prop "ro.build.fingerprint"         my_manifest/build*.prop                ||
+    get_prop "ro.build.fingerprint"         system/system/build_default.prop       ||
+    get_prop "ro.build.fingerprint"         vendor/euclid/my_manifest/build.prop   ||
+    get_prop "ro.build.fingerprint"         {system,system/system}/build*.prop     ||
+    get_prop "ro.product.build.fingerprint" product/build*.prop                    ||
+    get_prop "ro.system.build.fingerprint"  {system,system/system}/build*.prop     ||
+    get_prop "ro.build.fingerprint"         my_product/build.prop                  ||
+    get_prop "ro.system.build.fingerprint"  my_product/build.prop                  ||
+    get_prop "ro.vendor.build.fingerprint"  my_product/build.prop
+)
 
 # 'codename' property (e.g. caiman)
-codename=$(grep -h -m1 -oP "(?<=^ro.product.odm.device=).*" odm/etc/build*.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.odm.device=).*" system/system/build_default.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.device=).*" odm/etc/fingerprint/build.default.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.device=).*" my_manifest/build*.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.device=).*" system/system/build_default.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.device=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.vendor.device=).*" system/system/build_default.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.vendor.device=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.vendor.product.device=).*" system/system/build_default.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.vendor.product.device=).*" vendor/build*.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.vendor.device=).*" vendor/build*.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.device=).*" {vendor,system,system/system}/build*.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.vendor.product.device.oem=).*" odm/build.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.vendor.product.device.oem=).*" vendor/euclid/odm/build.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.vendor.device=).*" my_manifest/build*.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.system.device=).*" {system,system/system}/build*.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.system.device=).*" vendor/euclid/*/build.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.product.device=).*" vendor/euclid/*/build.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.product.device=).*" system/system/build_default.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.product.model=).*" vendor/euclid/*/build.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.device=).*" {oppo_product,my_product}/build*.prop | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.product.device=).*" oppo_product/build*.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.system.device=).*" my_product/build*.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.product.vendor.device=).*" my_product/build*.prop)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.build.fota.version=).*" {system,system/system}/build*.prop | cut -d - -f1 | head -1)
-[[ -z ${codename} ]] && codename=$(grep -h -m1 -oP "(?<=^ro.build.product=).*" {vendor,system,system/system}/build*.prop | head -1)
-[[ -z ${codename} ]] && codename=$(echo "$fingerprint" | cut -d / -f3 | cut -d : -f1)
+codename=$(
+    get_prop "ro.product.odm.device"        odm/etc/build*.prop                                 ||
+    get_prop "ro.product.odm.device"        system/system/build_default.prop                    ||
+    get_prop "ro.product.device"            odm/etc/fingerprint/build.default.prop              ||
+    get_prop "ro.product.device"            my_manifest/build*.prop                             ||
+    get_prop "ro.product.device"            system/system/build_default.prop                    ||
+    get_prop "ro.product.device"            vendor/euclid/my_manifest/build.prop                ||
+    get_prop "ro.product.vendor.device"     system/system/build_default.prop                    ||
+    get_prop "ro.product.vendor.device"     vendor/euclid/my_manifest/build.prop                ||
+    get_prop "ro.vendor.product.device"     system/system/build_default.prop                    ||
+    get_prop "ro.vendor.product.device"     vendor/build*.prop                                  ||
+    get_prop "ro.product.vendor.device"     vendor/build*.prop                                  ||
+    get_prop "ro.product.device"            {vendor,system,system/system}/build*.prop           ||
+    get_prop "ro.vendor.product.device.oem" odm/build.prop                                      ||
+    get_prop "ro.vendor.product.device.oem" vendor/euclid/odm/build.prop                        ||
+    get_prop "ro.product.vendor.device"     my_manifest/build*.prop                             ||
+    get_prop "ro.product.system.device"     {system,system/system}/build*.prop                  ||
+    get_prop "ro.product.system.device"     vendor/euclid/*/build.prop                          ||
+    get_prop "ro.product.product.device"    vendor/euclid/*/build.prop                          ||
+    get_prop "ro.product.product.device"    system/system/build_default.prop                    ||
+    get_prop "ro.product.product.model"     vendor/euclid/*/build.prop                          ||
+    get_prop "ro.product.device"            {oppo_product,my_product}/build*.prop               ||
+    get_prop "ro.product.product.device"    oppo_product/build*.prop                            ||
+    get_prop "ro.product.system.device"     my_product/build*.prop                              ||
+    get_prop "ro.product.vendor.device"     my_product/build*.prop                              ||
+    { get_prop "ro.build.fota.version"      {system,system/system}/build*.prop | cut -d- -f1; } ||
+    get_prop "ro.build.product"             {vendor,system,system/system}/build*.prop           ||
+    echo "$fingerprint" | cut -d/ -f3 | cut -d: -f1
+)
 
 # 'brand' property (e.g. google)
-brand=$(grep -h -m1 -oP "(?<=^ro.product.odm.brand=).*" odm/etc/"${codename}"_build.prop | head -1)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.odm.brand=).*" odm/etc/build*.prop | head -1)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.odm.brand=).*" system/system/build_default.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.brand=).*" odm/etc/fingerprint/build.default.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.brand=).*" my_product/build*.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.brand=).*" system/system/build_default.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.brand=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.brand=).*" {vendor,system,system/system}/build*.prop | head -1)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.brand.sub=).*" my_product/build*.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.brand.sub=).*" system/system/euclid/my_product/build*.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.vendor.brand=).*" my_manifest/build*.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.vendor.brand=).*" system/system/build_default.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.vendor.brand=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.vendor.brand=).*" vendor/build*.prop | head -1)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.vendor.product.brand=).*" vendor/build*.prop | head -1)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.system.brand=).*" {system,system/system}/build*.prop | head -1)
-[[ -z ${brand} || ${brand} == "OPPO" ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.system.brand=).*" vendor/euclid/*/build.prop | head -1)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.product.brand=).*" vendor/euclid/product/build*.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.odm.brand=).*" my_manifest/build*.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.odm.brand=).*" vendor/euclid/my_manifest/build.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.odm.brand=).*" vendor/odm/etc/build*.prop)
-[[ -z ${brand} ]] && brand=$(grep -h -m1 -oP "(?<=^ro.product.brand=).*" {oppo_product,my_product}/build*.prop | head -1)
-[[ -z ${brand} ]] && brand=$(echo "$fingerprint" | cut -d / -f1)
-[[ -z ${brand} ]] && brand="$manufacturer"
+brand=$(
+    get_prop "ro.product.odm.brand"     odm/etc/"${codename}"_build.prop             ||
+    get_prop "ro.product.odm.brand"     odm/etc/build*.prop                          ||
+    get_prop "ro.product.odm.brand"     system/system/build_default.prop             ||
+    get_prop "ro.product.brand"         odm/etc/fingerprint/build.default.prop       ||
+    get_prop "ro.product.brand"         my_product/build*.prop                       ||
+    get_prop "ro.product.brand"         system/system/build_default.prop             ||
+    get_prop "ro.product.brand"         vendor/euclid/my_manifest/build.prop         ||
+    get_prop "ro.product.brand"         {vendor,system,system/system}/build*.prop    ||
+    get_prop "ro.product.brand.sub"     my_product/build*.prop                       ||
+    get_prop "ro.product.brand.sub"     system/system/euclid/my_product/build*.prop  ||
+    get_prop "ro.product.vendor.brand"  my_manifest/build*.prop                      ||
+    get_prop "ro.product.vendor.brand"  system/system/build_default.prop             ||
+    get_prop "ro.product.vendor.brand"  vendor/euclid/my_manifest/build.prop         ||
+    get_prop "ro.product.vendor.brand"  vendor/build*.prop                           ||
+    get_prop "ro.vendor.product.brand"  vendor/build*.prop                           ||
+    get_prop "ro.product.system.brand"  {system,system/system}/build*.prop           ||
+    get_prop "ro.product.system.brand"  vendor/euclid/*/build.prop                   ||
+    get_prop "ro.product.product.brand" vendor/euclid/product/build*.prop            ||
+    get_prop "ro.product.odm.brand"     my_manifest/build*.prop                      ||
+    get_prop "ro.product.odm.brand"     vendor/euclid/my_manifest/build.prop         ||
+    get_prop "ro.product.odm.brand"     vendor/odm/etc/build*.prop                   ||
+    get_prop "ro.product.brand"         {oppo_product,my_product}/build*.prop        ||
+    echo "$fingerprint" | cut -d/ -f1                                                ||
+    echo "$manufacturer"
+)
+# Special case: override if brand is OPPO
+[[ "$brand" == "OPPO" ]] && brand=$(get_prop "ro.product.system.brand" vendor/euclid/*/build.prop || echo "$brand")
 
 # 'description' property (e.g. caiman-user 15 AP4A.241205.013 12621605 release-keys)
-description=$(grep -h -m1 -oP "(?<=^ro.build.description=).*" {system,system/system}/build.prop)
-[[ -z ${description} ]] && description=$(grep -h -m1 -oP "(?<=^ro.build.description=).*" {system,system/system}/build*.prop)
-[[ -z ${description} ]] && description=$(grep -h -m1 -oP "(?<=^ro.vendor.build.description=).*" vendor/build.prop)
-[[ -z ${description} ]] && description=$(grep -h -m1 -oP "(?<=^ro.vendor.build.description=).*" vendor/build*.prop)
-[[ -z ${description} ]] && description=$(grep -h -m1 -oP "(?<=^ro.product.build.description=).*" product/build.prop)
-[[ -z ${description} ]] && description=$(grep -h -m1 -oP "(?<=^ro.product.build.description=).*" product/build*.prop)
-[[ -z ${description} ]] && description=$(grep -h -m1 -oP "(?<=^ro.system.build.description=).*" {system,system/system}/build*.prop)
-[[ -z ${description} ]] && description="$flavor $release $id $incremental $tags"
+description=$(
+    get_prop "ro.build.description"         {system,system/system}/build.prop      ||
+    get_prop "ro.build.description"         {system,system/system}/build*.prop     ||
+    get_prop "ro.vendor.build.description"  vendor/build.prop                      ||
+    get_prop "ro.vendor.build.description"  vendor/build*.prop                     ||
+    get_prop "ro.product.build.description" product/build.prop                     ||
+    get_prop "ro.product.build.description" product/build*.prop                    ||
+    get_prop "ro.system.build.description"  {system,system/system}/build*.prop     ||
+    echo "$flavor $release $id $incremental $tags"
+)
 
-abilist=$(grep -h -m1 -oP "(?<=^ro.product.cpu.abilist=).*" -hs {system,system/system}/build*.prop | head -1)
-[[ -z "${abilist}" ]] && abilist=$(grep -h -m1 -oP "(?<=^ro.vendor.product.cpu.abilist=).*" -hs vendor/build*.prop)
+# Remaining properties
+abilist=$(
+    get_prop "ro.product.cpu.abilist"        {system,system/system}/build*.prop ||
+    get_prop "ro.vendor.product.cpu.abilist" vendor/build*.prop
+)
 
-locale=$(grep -h -m1 -oP "(?<=^ro.product.locale=).*" -hs {system,system/system}/build*.prop | head -1)
-[[ -z "${locale}" ]] && locale=undefined
+locale=$(get_prop "ro.product.locale" {system,system/system}/build*.prop || echo "undefined")
+density=$(get_prop "ro.sf.lcd_density" {vendor,system,system/system}/build*.prop || echo "undefined")
+is_ab=$(get_prop "ro.build.ab_update" {system,system/system,vendor}/build*.prop || echo "false")
+treble_support=$(get_prop "ro.treble.enabled" {system,system/system}/build*.prop || echo "false")
 
-density=$(grep -h -m1 -oP "(?<=^ro.sf.lcd_density=).*" -hs {vendor,system,system/system}/build*.prop | head -1)
-[[ -z "${density}" ]] && density=undefined
-
-is_ab=$(grep -h -m1 -oP "(?<=^ro.build.ab_update=).*" -hs {system,system/system,vendor}/build*.prop)
-[[ -z "${is_ab}" ]] && is_ab="false"
-
-treble_support=$(grep -h -m1 -oP "(?<=^ro.treble.enabled=).*" -hs {system,system/system}/build*.prop)
-[[ -z "${treble_support}" ]] && treble_support="false"
-
-otaver=$(grep -h -m1 -oP "(?<=^ro.build.version.ota=).*" -hs {vendor/euclid/product,oppo_product,system,system/system}/build*.prop | head -1)
-[[ ! -z "${otaver}" && -z "${fingerprint}" ]] && branch=$(echo "${otaver}" | tr ' ' '-')
-[[ -z "${otaver}" ]] && otaver=$(grep -h -m1 -oP "(?<=^ro.build.fota.version=).*" -hs {system,system/system}/build*.prop | head -1)
-[[ -z "${branch}" ]] && branch=$(echo "${description}" | tr ' ' '-')
+otaver=$(
+    get_prop "ro.build.version.ota" {vendor/euclid/product,oppo_product,system,system/system}/build*.prop ||
+    get_prop "ro.build.fota.version" {system,system/system}/build*.prop
+)
+[[ -n "$otaver" && -z "$fingerprint" ]] && branch=$(echo "$otaver" | tr ' ' '-')
+branch=${branch:-$(echo "$description" | tr ' ' '-')}
 
 if [[ "$PUSH_TO_GITLAB" = true ]]; then
 	rm -rf .github_token
