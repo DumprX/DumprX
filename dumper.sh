@@ -1512,12 +1512,21 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	[[ -z "$(git config --get user.name)" ]] && git config user.name "Sushrut1101"
 
 	# Create Subgroup
-	GRP_ID=$(curl -s --request GET --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${GITLAB_HOST}/api/v4/groups/${GIT_ORG}" | jq -r '.id')
-	curl --request POST \
-	--header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-	--header "Content-Type: application/json" \
-	--data '{"name": "'"${brand}"'", "path": "'"$(echo ${brand} | tr [:upper:] [:lower:])"'", "visibility": "public", "parent_id": "'"${GRP_ID}"'"}' \
-	"${GITLAB_HOST}/api/v4/groups/"
+	GRP_ID=$(curl -s \
+        --request GET \
+        --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+        "${GITLAB_HOST}/api/v4/groups/${GIT_ORG}" | jq -r '.id')
+	curl -s \
+        --request POST \
+        --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+        --header "Content-Type: application/json" \
+        --data "{
+            \"name\": \"${brand}\",
+            \"path\": \"$(echo "${brand}" | tr '[:upper:]' '[:lower:]')\",
+            \"visibility\": \"public\",
+            \"parent_id\": \"${GRP_ID}\"
+        }" \
+        "${GITLAB_HOST}/api/v4/groups/"
 	echo ""
 
 	# Subgroup ID
@@ -1527,17 +1536,23 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
     	curl -s \
 	        --request GET \
     	    --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-        	"${GITLAB_HOST}/api/v4/groups/${GIT_ORG}/subgroups" \
+			"${GITLAB_HOST}/api/v4/groups/${GIT_ORG}/subgroups?per_page=100" \
     		| jq -r --arg name "$subgrp" '.[] | select(.path == $name) | .id'
 	}
 
 	SUBGRP_ID=$(get_gitlab_subgrp_id "${brand}")
 
 	# Create Repository
-	curl -s \
-	--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-	-X POST \
-	"${GITLAB_HOST}/api/v4/projects?name=${codename}&namespace_id=${SUBGRP_ID}&visibility=public"
+    curl -s \
+        --request POST \
+        --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+        --header "Content-Type: application/json" \
+        --data "{
+            \"name\": \"${codename}\",
+            \"namespace_id\": \"${SUBGRP_ID}\",
+            \"visibility\": \"public\"
+        }" \
+        "${GITLAB_HOST}/api/v4/projects"
 
 	# Get Project/Repo ID
 	get_gitlab_project_id() {
@@ -1547,7 +1562,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
     	curl -s \
 	        --request GET \
     	    --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-        	"${GITLAB_HOST}/api/v4/groups/${group_id}/projects" \
+			"${GITLAB_HOST}/api/v4/groups/${group_id}/projects?per_page=100" \
     		| jq -r --arg name "$proj" '.[] | select(.path == $name) | .id'
 	}
 
@@ -1559,7 +1574,12 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	git remote add origin git@${GITLAB_INSTANCE}:${GIT_ORG}/${repo}.git
 
 	# Ensure that the target repo is public
-	curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --url ''"${GITLAB_HOST}"'/api/v4/projects/'"${PROJECT_ID}"'' --data "visibility=public"
+    curl -s \
+        --request PUT \
+        --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+        --header "Content-Type: application/json" \
+        --data '{"visibility": "public"}' \
+        "${GITLAB_HOST}/api/v4/projects/${PROJECT_ID}"
 	printf "\n"
 
 	# Push to GitLab
@@ -1572,11 +1592,14 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	done
 
 	# Update the Default Branch
-	curl	--request PUT \
-		--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-		--url ''"${GITLAB_HOST}"'/api/v4/projects/'"${PROJECT_ID}"'' \
-		--data "default_branch=${branch}"
-	printf "\n"
+	curl -s \
+	    --request PUT \
+	    --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+	    --header "Content-Type: application/json" \
+	    --data "{\"default_branch\": \"${branch}\"}" \
+	    "${GITLAB_HOST}/api/v4/projects/${PROJECT_ID}"
+
+	printf "\nDone! Repo available at %s/%s/%s\n" "${GITLAB_HOST}" "${GIT_ORG}" "${repo}"
 
 	# Telegram channel post
 	if [[ -s "${PROJECT_DIR}"/.tg_token ]]; then
