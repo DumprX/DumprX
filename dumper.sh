@@ -920,12 +920,12 @@ if [[ -f boot.img ]]; then
 
     # Generate non-stack symbols
     echo "[INFO] Generating 'kallsyms.txt'..."
-    uvx --from git+https://github.com/marin-m/vmlinux-to-elf@master kallsyms-finder boot.img > kallsyms.txt || \
+    uvx -q --from git+https://github.com/marin-m/vmlinux-to-elf@master kallsyms-finder boot.img >> /dev/null 2>&1 > kallsyms.txt || \
         echo "[ERROR] Failed to generate 'kallsyms.txt'"
 
     # Generate analyzable '.elf'
     echo "[INFO] Extracting 'boot.elf'..."
-    uvx --from git+https://github.com/marin-m/vmlinux-to-elf@master vmlinux-to-elf "boot.img" boot.elf > /dev/null ||
+    uvx -q --from git+https://github.com/marin-m/vmlinux-to-elf@master vmlinux-to-elf boot.img boot.elf >> /dev/null 2>&1 > /dev/null ||
         echo "[ERROR] Failed to generate 'boot.elf'"
 
 fi
