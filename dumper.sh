@@ -135,7 +135,6 @@ fi
 
 # Set Names of Downloader Utility Programs
 MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
-AFHDL="${UTILSDIR}"/downloaders/afh_dl.py
 
 # EROFS
 FSCK_EROFS=${UTILSDIR}/bin/fsck.erofs
@@ -172,7 +171,7 @@ else
 		if echo "${URL}" | grep -q "mega.nz\|mediafire.com\|drive.google.com"; then
 			( "${MEGAMEDIADRIVE_DL}" "${URL}" ) || exit 1
 		elif echo "${URL}" | grep -q "androidfilehost.com"; then
-			( python3 "${AFHDL}" -l "${URL}" ) || exit 1
+			( uvx -q afh-dl -l "${URL}" ) || exit 1
 		elif echo "${URL}" | grep -q "/we.tl/"; then
 			( "${TRANSFER}" "${URL}" ) || exit 1
 		else
@@ -363,10 +362,10 @@ if echo "${FILEPATH}" | grep -q ".*.kdz" || [[ "${EXTENSION}" == "kdz" ]]; then
 	printf "LG KDZ Detected.\n"
 	# Either Move Downloaded/Re-Loaded File Or Copy Local File
 	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/ 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/
-	python3 "${KDZ_EXTRACT}" -f "${FILE}" -x -o "./" 2>/dev/null
+	uv run -q --with zstandard "${KDZ_EXTRACT}" -f "${FILE}" -x -o "./" 2>/dev/null
 	DZFILE=$(ls -- *.dz)
 	printf "Extracting All Partitions As Individual Images.\n"
-	python3 "${DZ_EXTRACT}" -f "${DZFILE}" -s -o "./" 2>/dev/null
+	uv run -q --with zstandard "${DZ_EXTRACT}" -f "${DZFILE}" -s -o "./" 2>/dev/null
 	rm -f "${TMPDIR}"/"${FILE}" "${TMPDIR}"/"${DZFILE}" 2>/dev/null
 	# dzpartitions="gpt_main persist misc metadata vendor system system_other product userdata gpt_backup tz boot dtbo vbmeta cust oem odm factory modem NON-HLOS"
 	find "${TMPDIR}" -maxdepth 1 -type f -name "*.image" | while read -r i; do mv "${i}" "${i/.image/.img}" 2>/dev/null; done
@@ -447,7 +446,7 @@ if ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "system.new.dat" 2>/dev/null || [[ $
 				rm -f "$i"
 			fi
 			echo "Extracting ${partition}"
-			python3 ${SDAT2IMG} ${line}.transfer.list ${line}.new.dat "${OUTDIR}"/${line}.img > ${TMPDIR}/extract.log
+			uv run -q ${SDAT2IMG} ${line}.transfer.list ${line}.new.dat "${OUTDIR}"/${line}.img > ${TMPDIR}/extract.log
 			rm -rf ${line}.transfer.list ${line}.new.dat
 		done
 	done
@@ -541,7 +540,7 @@ elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep ".pac$" 2>/dev/null || [[ $(find "${T
 	for f in "${TMPDIR}"/*; do detox -r "${f}"; done
 	pac_list=$(find . -type f -name "*.pac" | cut -d'/' -f'2-' | sort)
 	for file in ${pac_list}; do
-		python3 "${PACEXTRACTOR}" "${file}" $(pwd)
+		uv run -q --with crcmod "${PACEXTRACTOR}" "${file}" $(pwd)
 	done
 	if [[ -f super.img ]]; then
 		superimage_extract || exit 1
@@ -673,9 +672,9 @@ elif ${BIN_7ZZ} l -ba "${FILEPATH}" | grep -q "UPDATE.APP" 2>/dev/null || [[ $(f
 	printf "Huawei UPDATE.APP Detected\n"
 	[[ -f "${FILEPATH}" ]] && ${BIN_7ZZ} x "${FILEPATH}" UPDATE.APP 2>/dev/null >> "${TMPDIR}"/zip.log
 	find "${TMPDIR}" -type f -name "UPDATE.APP" -exec mv {} . \;
-	python3 "${SPLITUAPP}" -f "UPDATE.APP" -l super preas preavs || (
+	uv run -q "${SPLITUAPP}" -f "UPDATE.APP" -l super preas preavs || (
 	for partition in ${PARTITIONS}; do
-		python3 "${SPLITUAPP}" -f "UPDATE.APP" -l "${partition/.img/}" || printf "%s not found in UPDATE.APP\n" "${partition}"
+		uv run -q "${SPLITUAPP}" -f "UPDATE.APP" -l "${partition/.img/}" || printf "%s not found in UPDATE.APP\n" "${partition}"
 	done )
 	find output/ -type f -name "*.img" -exec mv {} . \;	# Partitions Are Extracted In "output" Folder
 	if [[ -f super.img ]]; then
@@ -703,7 +702,7 @@ fi
 # PAC Archive Check
 if [[ "${EXTENSION}" == "pac" ]]; then
 	printf "PAC Archive Detected.\n"
-	python3 ${PACEXTRACTOR} ${FILEPATH} $(pwd)
+	uv run -q --with crcmod ${PACEXTRACTOR} ${FILEPATH} $(pwd)
 	superimage_extract || exit 1
 	exit
 fi
