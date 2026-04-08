@@ -951,44 +951,42 @@ fi
 
 # Extract Partitions
 for p in $PARTITIONS; do
-	if ! echo "${p}" | grep -q "boot\|recovery\|dtbo\|vendor_boot\|tz"; then
-		if [[ -e "$p.img" ]]; then
-			mkdir "$p" 2> /dev/null || rm -rf "${p:?}"/*
-			echo "Extracting $p partition..."
-			${BIN_7ZZ} x -snld "$p".img -y -o"$p"/ > /dev/null 2>&1
-			if [ $? -eq 0 ]; then
-				rm "$p".img > /dev/null 2>&1
-			else
-				# Handling EROFS Images, which can't be handled by 7z.
-				echo "Extraction Failed my 7z"
-				if [ -f $p.img ] && [ $p != "modem" ]; then
-					echo "Couldn't extract $p partition by 7z. Using fsck.erofs."
-					rm -rf "${p}"/*
-					"${FSCK_EROFS}" --extract="$p" "$p".img
-					if [ $? -eq 0 ]; then
-						rm -fv "$p".img > /dev/null 2>&1
-					else
-						echo "Couldn't extract $p partition by fsck.erofs. Using mount loop"
-						sudo mount -o loop -t auto "$p".img "$p"
-						mkdir "${p}_"
-						sudo cp -rf "${p}/"* "${p}_"
-						sudo umount "${p}"
-						sudo cp -rf "${p}_/"* "${p}"
-						sudo rm -rf "${p}_"
-						sudo chown -R "$(whoami)" "${p}"/*
-						chmod -R u+rwX "${p}"/*
-						if [ $? -eq 0 ]; then
-							rm -fv "$p".img > /dev/null 2>&1
-						else
-							echo "Couldn't extract $p partition. It might use an unsupported filesystem."
-							echo "For EROFS: make sure you're using Linux 5.4+ kernel."
-							echo "For F2FS: make sure you're using Linux 5.15+ kernel."
-						fi
-					fi
-				fi
-			fi
-		fi
+	[[ "$p" =~ ^(boot|recovery|dtbo|vendor_boot|init_boot|tz)$ ]] && continue
+	[[ ! -e "$p.img" ]] && continue
+
+	echo "Extracting $p partition..."
+	mkdir -p "$p" && rm -rf "${p:?}"/*
+
+	# Try 7z first
+	if "${BIN_7ZZ}" x -snld "$p.img" -y -o"$p/" > /dev/null 2>&1; then
+		rm -f "$p.img"
+		continue
 	fi
+
+	# Try fsck.erofs (for EROFS images)
+	echo "7z failed, trying fsck.erofs..."
+	if [[ "$p" != "modem" ]] && "${FSCK_EROFS}" --extract="$p" "$p.img" > /dev/null 2>&1; then
+		rm -f "$p.img"
+		continue
+	fi
+
+	# Fall back to mount loop
+	echo "fsck.erofs failed, trying mount loop..."
+	if sudo mount -o loop -t auto "$p.img" "$p"; then
+		mkdir -p "${p}_"
+		sudo cp -rf "${p}/." "${p}_/"
+		sudo umount "$p"
+		sudo cp -rf "${p}_/." "$p/"
+		sudo rm -rf "${p}_"
+		sudo chown -R "$(whoami)" "$p"
+		chmod -R u+rwX "$p"
+		rm -f "$p.img"
+		continue
+	fi
+
+	echo "ERROR: Could not extract '$p' partition. Unsupported filesystem."
+	echo "For EROFS: Linux 5.4+ kernel required"
+	echo "For F2FS: Linux 5.15+ kernel required"
 done
 
 # Remove Unnecessary Image Leftover From OUTDIR
