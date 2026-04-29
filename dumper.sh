@@ -139,6 +139,9 @@ MEGAMEDIADRIVE_DL="${UTILSDIR}"/downloaders/mega-media-drive_dl.sh
 # EROFS
 FSCK_EROFS=${UTILSDIR}/bin/fsck.erofs
 
+# F2FS
+F2FS_EXTRACTOR="${UTILSDIR}"/bin/f2fs-extractor
+
 # Partition List That Are Currently Supported
 PARTITIONS="system system_ext system_other systemex vendor cust odm oem factory product xrom modem dtbo dtb boot vendor_boot recovery tz oppo_product preload_common opproduct reserve india my_preload my_odm my_stock my_operator my_country my_product my_company my_engineering my_heytap my_custom my_manifest my_carrier my_region my_bigball my_version special_preload system_dlkm vendor_dlkm odm_dlkm init_boot vendor_kernel_boot odmko socko nt_log mi_ext hw_product product_h preas preavs"
 EXT4PARTITIONS="system vendor cust odm oem factory product xrom systemex oppo_product preload_common hw_product product_h preas preavs"
@@ -970,8 +973,15 @@ for p in $PARTITIONS; do
 		continue
 	fi
 
+	# Try f2fs-extractor (for F2FS images)
+	echo "fsck.erofs failed, trying f2fs-extractor..."
+	if [[ "$p" != "modem" ]] && "${F2FS_EXTRACTOR}" extract "$p.img" "$p" > /dev/null 2>&1; then
+		rm -f "$p.img"
+		continue
+	fi
+
 	# Fall back to mount loop
-	echo "fsck.erofs failed, trying mount loop..."
+	echo "f2fs-extractor failed, trying mount loop..."
 	if sudo mount -o loop -t auto "$p.img" "$p"; then
 		mkdir -p "${p}_"
 		sudo cp -rf "${p}/." "${p}_/"
