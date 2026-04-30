@@ -118,6 +118,7 @@ DZ_EXTRACT="${UTILSDIR}"/kdztools/undz.py
 RUUDECRYPT="${UTILSDIR}"/RUU_Decrypt_Tool
 EXTRACT_IKCONFIG="${UTILSDIR}"/extract-ikconfig
 MAGISKBOOT="${UTILSDIR}"/bin/magiskboot
+BOOTIMG_INFO="${UTILSDIR}"/bootimg_info.py
 AML_EXTRACT="${UTILSDIR}"/aml-upgrade-package-extract
 AFPTOOL_EXTRACT="${UTILSDIR}"/bin/afptool
 RK_EXTRACT="${UTILSDIR}"/bin/rkImageMaker
@@ -754,122 +755,6 @@ done
 cd "${OUTDIR}"/ || exit
 rm -rf "${TMPDIR:?}"/*
 
-get_bootimg_info() {
-    local bootimg="$1"
-    local tempdir="$2"
-
-    # Detect and skip MTK/vendor header
-    local offset
-    offset=$(grep -abo "ANDROID!\|VNDRBOOT" "$bootimg" | cut -f1 -d:)
-    [[ -z "$offset" ]] && { echo "ERROR: No Android/VndrBoot magic found"; return 1; }
-
-    local VNDRBOOT=false
-    grep -qabo "VNDRBOOT" "$bootimg" && VNDRBOOT=true
-
-    local header_addr=40
-    $VNDRBOOT && header_addr=8
-
-    # Read header version
-    local version
-    version=$(od -A n -D -j "$header_addr" -N 1 "$bootimg" | sed 's/ //g')
-
-    # Read sizes
-    local kernel_size ramdisk_size second_size dtb_size dtbo_size page_size
-    kernel_size=$(od -A n -D -j 8  -N 4 "$bootimg" | sed 's/ //g')
-    ramdisk_size=$(od -A n -D -j 16 -N 4 "$bootimg" | sed 's/ //g')
-    second_size=$(od -A n -D -j 24 -N 4 "$bootimg" | sed 's/ //g')
-    page_size=$(od -A n -D -j 36 -N 4 "$bootimg" | sed 's/ //g')
-    dtb_size=$(od -A n -D -j 40 -N 4 "$bootimg" | sed 's/ //g')
-    dtbo_size=$(od -A n -D -j 1632 -N 4 "$bootimg" | sed 's/ //g')
-
-    # Read addresses
-    local kernel_addr ramdisk_addr second_addr tags_addr dtb_addr dtbo_addr
-    kernel_addr=0x$(od -A n -X -j 12 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-    ramdisk_addr=0x$(od -A n -X -j 20 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-    second_addr=0x$(od -A n -X -j 28 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-    tags_addr=0x$(od -A n -X -j 32 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-    [[ $dtbo_size -gt 0 ]] && \
-        dtbo_addr=0x$(od -A n -X -j 1636 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-
-    # Read board and cmdline
-    local board cmd_line os_version patch_level
-    board=$(od -A n -S1 -j 48 -N 16 "$bootimg")
-    cmd_line=$(od -A n -S1 -j 64 -N 512 "$bootimg")
-
-    # Version-specific overrides
-    if [[ $version -eq 2 ]]; then
-        dtb_size=$(od -A n -D -j 1648 -N 4 "$bootimg" | sed 's/ //g')
-        dtb_addr=0x$(od -A n -X -j 1652 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-
-    elif [[ $version -eq 3 ]]; then
-        page_size=4096
-        board=; second_size=0; second_addr=; dtb_size=0; dtb_addr=
-
-        if $VNDRBOOT; then
-            kernel_addr=0x$(od -A n -X -j 16 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-            ramdisk_addr=0x$(od -A n -X -j 20 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-            ramdisk_size=$(od -A n -D -j 24 -N 4 "$bootimg" | sed 's/ //g')
-            cmd_line=$(od -A n -S1 -j 28 -N 2048 "$bootimg")
-            tags_addr=0x$(od -A n -X -j 2076 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-            dtb_size=$(od -A n -D -j 2100 -N 4 "$bootimg" | sed 's/ //g')
-            dtb_addr=0x$(od -A n -X -j 2104 -N 4 "$bootimg" | sed 's/ //g;s/^0*//')
-        else
-            kernel_addr=0x00008000
-            kernel_size=$(od -A n -D -j 8  -N 4 "$bootimg" | sed 's/ //g')
-            ramdisk_size=$(od -A n -D -j 12 -N 4 "$bootimg" | sed 's/ //g')
-            cmd_line=$(od -A n -S1 -j 44 -N 1536 "$bootimg")
-            local raw_os
-            raw_os=$(od -A n -D -j 16 -N 4 "$bootimg" | sed 's/ //g')
-            patch_level=$(( raw_os & ((1<<11)-1) ))
-            raw_os=$(( raw_os >> 11 ))
-            os_version=$(( raw_os>>14 )).$(( (raw_os>>7) & ((1<<7)-1) )).$(( raw_os & ((1<<7)-1) ))
-            patch_level=$(( (patch_level>>4) + 2000 )):$(( patch_level & ((1<<4)-1) ))
-            kernel_addr=; ramdisk_addr=; tags_addr=
-        fi
-    fi
-
-    # Compute offsets from base
-    local base_addr
-    base_addr=$(( kernel_addr - 0x00008000 ))
-
-    _fmt_offset() { printf "0x%08x" "$(( $1 - base_addr ))"; }
-
-    local kernel_offset ramdisk_offset second_offset tags_offset dtb_offset dtbo_offset
-    [[ -n "$kernel_addr"  ]] && kernel_offset=$(_fmt_offset  "$kernel_addr")
-    [[ -n "$ramdisk_addr" ]] && ramdisk_offset=$(_fmt_offset "$ramdisk_addr")
-    [[ -n "$second_addr"  ]] && second_offset=$(_fmt_offset  "$second_addr")
-    [[ -n "$tags_addr"    ]] && tags_offset=$(_fmt_offset    "$tags_addr")
-    [[ -n "$dtb_addr"     ]] && dtb_offset=$(_fmt_offset     "$dtb_addr")
-    [[ -n "$dtbo_addr"    ]] && dtbo_offset=$(_fmt_offset    "$dtbo_addr")
-    base_addr=$(printf "0x%08x" "$base_addr")
-
-    # Suppress offsets based on version/type
-    if [[ $version -gt 2 ]] && ! $VNDRBOOT; then
-        tags_offset=; ramdisk_offset=
-    fi
-    $VNDRBOOT && kernel_addr= && dtbo_offset=
-
-    # Write img_info
-    {
-        echo "kernel=kernel"
-        echo "ramdisk=ramdisk"
-        echo "page_size=$page_size"
-        echo "kernel_size=$kernel_size"
-        echo "ramdisk_size=$ramdisk_size"
-        echo "base_addr=$base_addr"
-        [[ -n "$kernel_offset"  ]] && echo "kernel_offset=$kernel_offset"
-        [[ -n "$ramdisk_offset" ]] && echo "ramdisk_offset=$ramdisk_offset"
-        [[ -n "$tags_offset"    ]] && echo "tags_offset=$tags_offset"
-        [[ -n "$second_size"    ]] && [[ $second_size -gt 0 ]] && echo "second=second.img" && echo "second_size=$second_size" && echo "second_offset=$second_offset"
-        [[ -n "$dtbo_size"      ]] && [[ $dtbo_size  -gt 0 ]] && echo "dtbo=dtbo.img"     && echo "dtbo_size=$dtbo_size"     && echo "dtbo_offset=$dtbo_offset"
-        [[ -n "$dtb_size"       ]] && [[ $dtb_size   -gt 0 ]] && echo "dt=dtb.img"        && echo "dtb_size=$dtb_size"       && [[ $version -gt 1 ]] && echo "dtb_offset=$dtb_offset"
-        [[ -n "$os_version"     ]] && echo "os_version=$os_version"
-        [[ -n "$patch_level"    ]] && echo "os_patch_level=$patch_level"
-        [[ -n "$board"          ]] && echo "board=\"$board\""
-        echo "cmd_line='$(echo "$cmd_line" | sed "s/'/'\"'\"'/g")'"
-    } > "$tempdir/img_info"
-}
-
 # Extract and decompile device-tree blobs
 for image in boot vendor_boot vendor_kernel_boot init_boot recovery; do
     if [[ -f "${image}".img ]]; then
@@ -881,7 +766,6 @@ for image in boot vendor_boot vendor_kernel_boot init_boot recovery; do
 		cd "${image}"
         ${MAGISKBOOT} unpack ../"${image}.img" > /dev/null
 		cd -
-		get_bootimg_info "${image}.img" "${image}"
 
         ## Retrive image's ramdisk, and extract it
 		ramdiskfile=$(find "${image}" -type f -name "ramdisk.cpio" | head -1)
@@ -911,12 +795,19 @@ for image in boot vendor_boot vendor_kernel_boot init_boot recovery; do
             dtc -q -I dtb -O dts "${dtb}" >> "${image}/dts/$(basename "${dtb}" | sed 's/\.dtb/.dts/')" || \
                 echo "Failed to decompile device-tree blobs."
         done
-    fi
 
-    # If no device-tree were extracted or decompiled, delete the directories
-    if ! ls -A ${image}/dtb >> /dev/null 2>&1; then
-        rm -rf "${image}/dtb" "${image}/dts"
-    fi
+		# If no device-tree were extracted or decompiled, delete the directories
+		if ! ls -A ${image}/dtb >> /dev/null 2>&1; then
+			rm -rf "${image}/dtb" "${image}/dts"
+		fi
+
+		# Create info.txt
+		[[ -f "${image}"/kernel ]] && echo "kernel: kernel" > ${image}/info.txt
+		[[ -d "${image}"/dtb ]] && echo "dtb: dtb/$(basename $(ls ${image}/dtb/01*.dtb))" >> ${image}/info.txt
+		[[ -d "${image}"/ramdisk ]] && echo "ramdisk: ramdisk/" >> ${image}/info.txt
+		[[ -d "${image}"/recovery_ramdisk ]] && echo "recovery_ramdisk: recovery_ramdisk/" >> ${image}/info.txt
+		uv run ${BOOTIMG_INFO} "${image}.img" >> "${image}"/info.txt
+	fi
 done
 
 # Extract 'boot.img'-related content
