@@ -888,8 +888,15 @@ for image in boot vendor_boot vendor_kernel_boot init_boot recovery; do
 		${BIN_7ZZ} -snld x "${ramdiskfile}" -o"${image}/ramdisk" >> /dev/null 2>&1 || \
 			echo "Failed to extract ramdisk."
 
+        ## Retrive recovery ramdisk, and extract it
+		recoveryramdiskfile=$(find "${image}" -type f -name "recovery.cpio" | head -1)
+		[[ ! -z "${recoveryramdiskfile}" ]] && {
+			${BIN_7ZZ} -snld x "${recoveryramdiskfile}" -o"${image}/recovery_ramdisk" >> /dev/null 2>&1 || \
+			echo "Failed to extract recovery ramdisk."
+		}
+
         ## Clean-up
-		rm -rf "${ramdiskfile}" "${image}/vendor_ramdisk"
+		rm -rf "${ramdiskfile}" "${recoveryramdiskfile}" "${image}/vendor_ramdisk"
 
         # Extract 'dtb' via 'extract-dtb'
         echo "Trying to extract device-tree(s) from '${image}'..." 
