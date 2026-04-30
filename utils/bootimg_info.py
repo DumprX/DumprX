@@ -50,18 +50,21 @@ class BootImageInfoFormatter:
             print(f'os_patch_level: {self.os_patch_level}')
         
         if self.header_version <= 2:
-            print(f'pagesize: {self.page_size:#010x}')
-            print(f'base: {0:#010x}')
-            print(f'kernel_offset: {self.kernel_load_address:#010x}')
-            print(f'ramdisk_offset: {self.ramdisk_load_address:#010x}')
+            base = self.kernel_load_address - 0x00008000
+
+            print(f'pagesize: {self.page_size}')
+            print(f'base: {base:#010x}')
+            print(f'kernel_offset: {self.kernel_load_address - base:#010x}')
+            print(f'ramdisk_offset: {self.ramdisk_load_address - base:#010x}')
             if self.second_size > 0:
-                print(f'second_offset: {self.second_load_address:#010x}')
-            print(f'tags_offset: {self.tags_load_address:#010x}')
+                print(f'second_offset: {self.second_load_address - base:#010x}')
+            print(f'tags_offset: {self.tags_load_address - base:#010x}')
             if self.header_version == 2:
-                print(f'dtb_offset: {self.dtb_load_address:#018x}')
+                print(f'dtb_offset: {self.dtb_load_address - base:#010x}')
             print(f"board: '{self.product_name}'")
             print(f"cmdline: '{self.cmdline + self.extra_cmdline}'")
         else:
+            print(f'pagesize: {BOOT_IMAGE_HEADER_V3_PAGESIZE}')
             print(f"cmdline: '{self.cmdline}'")
 
 def parse_boot_image(boot_img):
@@ -117,13 +120,15 @@ def parse_boot_image(boot_img):
 class VendorBootImageInfoFormatter:
     """Formats the vendor_boot image info."""
     def print_info(self):
+        base = self.kernel_load_address - 0x00008000
+
         print(f'header version: {self.header_version}')
-        print(f'pagesize: {self.page_size:#010x}')
-        print(f'base: {0:#010x}')
-        print(f'kernel_offset: {self.kernel_load_address:#010x}')
-        print(f'ramdisk_offset: {self.ramdisk_load_address:#010x}')
-        print(f'tags_offset: {self.tags_load_address:#010x}')
-        print(f'dtb_offset: {self.dtb_load_address:#018x}')
+        print(f'pagesize: {self.page_size}')
+        print(f'base: {base:#010x}')
+        print(f'kernel_offset: {self.kernel_load_address - base:#010x}')
+        print(f'ramdisk_offset: {self.ramdisk_load_address - base:#010x}')
+        print(f'tags_offset: {self.tags_load_address - base:#010x}')
+        print(f'dtb_offset: {self.dtb_load_address - base:#010x}')
         print(f"vendor_cmdline: '{self.cmdline}'")
         print(f"board: '{self.product_name}'")
 
