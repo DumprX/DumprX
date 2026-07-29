@@ -36,6 +36,16 @@ To prepare for this toolkit, run [Setup File](setup.sh) at first, which is neede
 
 ## Usage
 
+If you want to push your dump to GitLab, set:
+```bash
+export PUSH_TO_GITLAB=true
+```
+
+If you want to use SSH to push, set:
+```bash
+export DUMPRX_USE_SSH=true
+```
+
 Run this toolkit with proper firmware file/folder path or URL
 
 ```bash

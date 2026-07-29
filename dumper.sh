@@ -1365,7 +1365,19 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.mercy-preview+json" -d '{ "names": ["'"${platform}"'","'"${manufacturer}"'","'"${top_codename}"'","firmware","dump"]}' "https://api.github.com/repos/${GIT_ORG}/${repo}/topics" 	# Update Repository Topics
 	
 	# Commit and Push
-	printf "\nPushing to %s via HTTPS...\nBranch:%s\n" "https://github.com/${GIT_ORG}/${repo}.git" "${branch}"
+	case "${DUMPRX_USE_SSH}" in
+		true|1)
+			git_prefix="git@github.com:"
+			method="SSH"
+			;;
+		*)
+			git_prefix="https://${GITHUB_TOKEN}@github.com/"
+			method="HTTPS"
+			;;
+	esac
+
+	git remote add origin "${git_prefix}${GIT_ORG}/${repo}.git"
+	printf "\nPushing to %s via ${method}...\nBranch:%s\n" "https://github.com/${GIT_ORG}/${repo}.git" "${branch}"
 	sleep 1
 	git remote add origin https://${GITHUB_TOKEN}@github.com/${GIT_ORG}/${repo}.git
 	commit_and_push
@@ -1484,9 +1496,18 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	PROJECT_ID=$(get_gitlab_project_id "${codename}" "${SUBGRP_ID}")
 
 	# Commit and Push
-	# Pushing via HTTPS doesn't work on GitLab for Large Repos (it's an issue with gitlab for large repos)
-	# NOTE: Your SSH Keys Needs to be Added to your Gitlab Instance
-	git remote add origin git@${GITLAB_INSTANCE}:${GIT_ORG}/${repo}.git
+	case "${DUMPRX_USE_SSH}" in
+		true|1)
+			git_prefix="git@${GITLAB_INSTANCE}:"
+			method="SSH"
+			;;
+		*)
+			git_prefix="https://DumprX:${GITLAB_TOKEN}@${GITLAB_INSTANCE}/"
+			method="HTTPS"
+			;;
+	esac
+
+	git remote add origin "${git_prefix}${GIT_ORG}/${repo}.git"
 
 	# Ensure that the target repo is public
     curl -s \
@@ -1500,7 +1521,7 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	# Push to GitLab
 	while [[ ! $(curl -sL "${GITLAB_HOST}/${GIT_ORG}/${repo}/-/raw/${branch}/all_files.txt" | grep "all_files.txt") ]]
 	do
-		printf "\nPushing to %s via SSH...\nBranch:%s\n" "${GITLAB_HOST}/${GIT_ORG}/${repo}.git" "${branch}"
+		printf "\nPushing to %s via ${method}...\nBranch:%s\n" "${GITLAB_HOST}/${GIT_ORG}/${repo}.git" "${branch}"
 		sleep 1
 		commit_and_push
 		sleep 1
