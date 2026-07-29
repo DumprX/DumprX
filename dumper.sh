@@ -323,26 +323,28 @@ if ${BIN_7ZZ} l -ba "${FILEPATH}" | gawk '{print $NF}' | grep -q ".*.ofp" 2>/dev
 	exit
 fi
 if [[ "${EXTENSION}" == "ofp" ]]; then
-	printf "Oppo ofp Detected.\n"
-	# Either Move Downloaded/Re-Loaded File Or Copy Local File
-	mv -f "${INPUTDIR}"/"${FILE}" "${TMPDIR}"/"${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}"/"${FILE}"
-	printf "Decrypting ofp & extracing...\n"
-	uv run --with-requirements "${UTILSDIR}/oppo_decrypt/requirements.txt" "$OFP_QC_DECRYPT" "${TMPDIR}"/"${FILE}" out
-	if [[ ! -f "${TMPDIR}"/out/boot.img || ! -f "${TMPDIR}"/out/userdata.img ]]; then
-		uv run --with-requirements "${UTILSDIR}/oppo_decrypt/requirements.txt" "$OFP_MTK_DECRYPT" "${TMPDIR}"/"${FILE}" out
-		if [[ ! -f "${TMPDIR}"/out/boot.img || ! -f "${TMPDIR}"/out/userdata.img ]]; then
-			printf "ofp decryption error.\n" && exit 1
-		fi
-	fi
-	mkdir -p "${INPUTDIR}" 2>/dev/null && rm -rf -- "${INPUTDIR:?}"/* 2>/dev/null
-	if [[ -d "${TMPDIR}"/out ]]; then
-		mv "${TMPDIR}"/out/* "${INPUTDIR}"/
-	fi
-	rm -rf "${TMPDIR:?}"/*
-	printf "Re-Loading The Decrypted Contents.\n"
-	cd "${PROJECT_DIR}"/ || exit
-	( bash "${0}" "${PROJECT_DIR}/input/" ) || exit 1
-	exit
+    printf "Oppo OFP Detected.\n"
+    mv -f "${INPUTDIR}/${FILE}" "${TMPDIR}/${FILE}" 2>/dev/null || cp -a "${FILEPATH}" "${TMPDIR}/${FILE}"
+    printf "Decrypting OFP...\n"
+    uv run -q --with-requirements "${UTILSDIR}/oppo_decrypt/requirements.txt" \
+        "${OFP_QC_DECRYPT}" "${TMPDIR}/${FILE}" "${TMPDIR}/out" >/dev/null
+
+    if [[ ! -f "${TMPDIR}/out/boot.img" ]]; then
+        printf "QC decrypt failed, trying MTK...\n"
+        uv run -q --with-requirements "${UTILSDIR}/oppo_decrypt/requirements.txt" \
+            "${OFP_MTK_DECRYPT}" "${TMPDIR}/${FILE}" "${TMPDIR}/out" >/dev/null
+    fi
+    if [[ ! -f "${TMPDIR}/out/boot.img" ]]; then
+        printf "OFP decryption failed.\n" "${TMPDIR}"
+        exit 1
+    fi
+    mkdir -p "${INPUTDIR}" && rm -rf -- "${INPUTDIR:?}"/*
+    mv "${TMPDIR}/out/"* "${INPUTDIR}/"
+    rm -rf "${TMPDIR:?}"/*
+    printf "Re-Loading The Decrypted Contents...\n"
+    cd "${PROJECT_DIR}" || exit 1
+    bash "${0}" "${PROJECT_DIR}/input/" || exit 1
+    exit
 fi
 # Xiaomi .tgz Check
 if [[ "${FILE##*.}" == "tgz" || "${FILE#*.}" == "tar.gz" ]]; then
