@@ -1053,6 +1053,8 @@ codename=$(
     get_prop "ro.product.device"            my_manifest/build*.prop                             ||
     get_prop "ro.product.device"            system/system/build_default.prop                    ||
     get_prop "ro.product.device"            vendor/euclid/my_manifest/build.prop                ||
+    get_prop "ro.product.device"            {oppo_product,my_product}/build*.prop               ||
+    get_prop "ro.product.product.device"    {oppo_product,my_product}/build*.prop               ||
     get_prop "ro.product.vendor.device"     system/system/build_default.prop                    ||
     get_prop "ro.product.vendor.device"     vendor/euclid/my_manifest/build.prop                ||
     get_prop "ro.vendor.product.device"     system/system/build_default.prop                    ||
@@ -1067,8 +1069,6 @@ codename=$(
     get_prop "ro.product.product.device"    vendor/euclid/*/build.prop                          ||
     get_prop "ro.product.product.device"    system/system/build_default.prop                    ||
     get_prop "ro.product.product.model"     vendor/euclid/*/build.prop                          ||
-    get_prop "ro.product.device"            {oppo_product,my_product}/build*.prop               ||
-    get_prop "ro.product.product.device"    oppo_product/build*.prop                            ||
     get_prop "ro.product.system.device"     my_product/build*.prop                              ||
     get_prop "ro.product.vendor.device"     my_product/build*.prop                              ||
     { get_prop "ro.build.fota.version"      {system,system/system}/build*.prop | cut -d- -f1; } ||
