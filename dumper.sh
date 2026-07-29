@@ -1288,6 +1288,7 @@ commit_and_push(){
 	git config http.postBuffer 524288000
 
 	git lfs install
+	git config lfs.locksverify false
 	[ -e ".gitattributes" ] || find . -type f -not -path ".git/*" -size +100M -exec git lfs track {} \;
 	[ -e ".gitattributes" ] && {
 		echo "[INFO] Setting up Git LFS..."
