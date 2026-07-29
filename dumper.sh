@@ -1290,13 +1290,15 @@ commit_and_push(){
 	git lfs install
 	[ -e ".gitattributes" ] || find . -type f -not -path ".git/*" -size +100M -exec git lfs track {} \;
 	[ -e ".gitattributes" ] && {
+		echo "[INFO] Setting up Git LFS..."
 		git add ".gitattributes"
-		git commit -sm "${codename}: Setup Git LFS"
+		git commit -sm "${codename}: Setup Git LFS" >/dev/null
 		git push -u origin "${branch}"
 	}
 
 	git add $(find -type f -name '*.apk')
-	git commit -sm "${codename}: Add apps" -m "for ${description}"
+	git commit -sm "${codename}: Add apps" -m "for ${description}" >/dev/null
+	echo "[INFO] Pushing apps..."
 	git push -u origin "${branch}"
 
 	[ -f "ikconfig" ] && git add "ikconfig"
@@ -1309,12 +1311,14 @@ commit_and_push(){
 		[ -f "${i}.img" ] && git add "${i}".img
 		[ -f "${i}.elf" ] && git add "${i}".elf
 
-		git commit -sm "${codename}: Add ${i}" -m "for ${description}"
+		git commit -sm "${codename}: Add ${i}" -m "for ${description}" >/dev/null
+		echo "[INFO] Pushing ${i}..."
 		git push -u origin "${branch}"
 	done
 
 	git add .
-	git commit -sm "${codename}: Add extras" -m "for ${description}"
+	git commit -sm "${codename}: Add extras" -m "for ${description}" >/dev/null
+	echo "[INFO] Pushing extras..."
 	git push -u origin "${branch}"
 }
 
