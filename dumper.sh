@@ -1268,6 +1268,13 @@ rm -rf "${TMPDIR}" 2>/dev/null
 
 commit_and_push(){
 	local DIRS=(
+		"boot"
+		"recovery"
+		"vendor_boot"
+		"init_boot"
+		"dtbo"
+		"aosp-device-tree"
+		"twrp-device-tree"
 		"system_ext"
 		"product"
 		"system_dlkm"
@@ -1278,30 +1285,36 @@ commit_and_push(){
 		"system"
 	)
 
+	git config http.postBuffer 524288000
+
 	git lfs install
 	[ -e ".gitattributes" ] || find . -type f -not -path ".git/*" -size +100M -exec git lfs track {} \;
 	[ -e ".gitattributes" ] && {
 		git add ".gitattributes"
-		git commit -sm "Setup Git LFS"
+		git commit -sm "${codename}: Setup Git LFS"
 		git push -u origin "${branch}"
 	}
 
 	git add $(find -type f -name '*.apk')
-	git commit -sm "Add apps for ${description}"
+	git commit -sm "${codename}: Add apps" -m "for ${description}"
 	git push -u origin "${branch}"
+
+	[ -f "ikconfig" ] && git add "ikconfig"
 
 	for i in "${DIRS[@]}"; do
 		[ -d "${i}" ] && git add "${i}"
 		[ -d system/"${i}" ] && git add system/"${i}"
 		[ -d system/system/"${i}" ] && git add system/system/"${i}"
 		[ -d vendor/"${i}" ] && git add vendor/"${i}"
+		[ -f "${i}.img" ] && git add "${i}".img
+		[ -f "${i}.elf" ] && git add "${i}".elf
 
-		git commit -sm "Add ${i} for ${description}"
+		git commit -sm "${codename}: Add ${i}" -m "for ${description}"
 		git push -u origin "${branch}"
 	done
 
 	git add .
-	git commit -sm "Add extras for ${description}"
+	git commit -sm "${codename}: Add extras" -m "for ${description}"
 	git push -u origin "${branch}"
 }
 
@@ -1341,7 +1354,6 @@ if [[ -s "${PROJECT_DIR}"/.github_token ]]; then
 	printf "\nFinal Repository Should Look Like...\n" && ls -lAog
 	printf "\n\nStarting Git Init...\n"
 	git init		# Insure Your Github Authorization Before Running This Script
-	git config http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
 	git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
 	[[ ! -s .gitignore ]] && rm .gitignore
@@ -1408,7 +1420,6 @@ elif [[ -s "${PROJECT_DIR}"/.gitlab_token ]]; then
 	printf "\n\nStarting Git Init...\n"
 
 	git init		# Insure Your GitLab Authorization Before Running This Script
-	git config http.postBuffer 524288000		# A Simple Tuning to Get Rid of curl (18) error while `git push`
 	git checkout -b "${branch}" || { git checkout -b "${incremental}" && export branch="${incremental}"; }
 	find . \( -name "*sensetime*" -o -name "*.lic" \) | cut -d'/' -f'2-' >| .gitignore
 	[[ ! -s .gitignore ]] && rm .gitignore
